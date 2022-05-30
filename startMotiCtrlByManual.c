@@ -9,6 +9,7 @@
 #include "startLocalNetCapData.h"
 #include "startMonitorPower.h"
 #include "startUwbCapData.h"
+#include "utils.h"
 
 //////////cw begin
 extern int g_m_suspend;
@@ -34,13 +35,6 @@ const char cmdStop[INFO_SIZE] = {0xCC, 0xCC, 0x02, 0x00, 0x02, 0x9C};
 // lock or unlock speed
 const char cmdLKULK[INFO_SIZE] = {0xCC, 0xCC, 0x02, 0x00, 0x03, 0x9D};
 
-static char cmdSum(char *arr, int len) {
-  int sum = 0;
-  for (int i = 0; i < len; i++) {
-    sum += (int)arr[i];
-  }
-  return (char)(sum & 0xFF);
-}
 
 static char turnKeyValue(uint8_t key) {
   if (key > 0x80)
