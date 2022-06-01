@@ -14,9 +14,9 @@
 
 pthread_t com_rcv_gpd_tid;
 pthread_mutex_t g_gpd_mutex;
-
 _ComGpdKey g_gpd_key;
-int g_file_descriptor_gpd;
+
+int fd_gpd;
 
 void ParseDataForCtrlFdbk(char chr) {
   static char chrBuf[100];
@@ -70,7 +70,7 @@ void *startComRcvGamepadKey(void *args) {
 
   printf("============startcomRcvGamepadKey....11111====\n");
   while (1) {
-    int sz = rv1126_com_receive(g_file_descriptor_gpd, buffer, 52);
+    int sz = rv1126_com_receive(fd_gpd, buffer, 52);
     if (sz == -1) {
       fprintf(stderr, "Com read failed!\n");
       usleep(500000);
@@ -83,8 +83,8 @@ void *startComRcvGamepadKey(void *args) {
     usleep(10000);
   }
 
-  if (g_file_descriptor_gpd > -1) {
-    rv1126_com_close(g_file_descriptor_gpd);
+  if (fd_gpd > -1) {
+    rv1126_com_close(fd_gpd);
   }
 
   return NULL;
@@ -94,11 +94,11 @@ void startComInitForGamePad() {
   int tryCounter = 0;
 
   while (1) {
-    g_file_descriptor_gpd = rv1126_com_open(1, 115200);
+    fd_gpd = rv1126_com_open(1, 115200);
     printf(
-        "=======startComInitForGamePad:com1===>>> g_file_descriptor_gpd = %d\n",
-        g_file_descriptor_gpd);
-    if (g_file_descriptor_gpd <= -1) {
+        "=======startComInitForGamePad:com1===>>> fd_gpd = %d\n",
+        fd_gpd);
+    if (fd_gpd <= -1) {
       printf("Open COM1 fail, try another time ... \n");
       tryCounter++;
       if (tryCounter > 5) {

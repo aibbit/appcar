@@ -22,7 +22,6 @@ _TestBinCamCache  g_BinCam_tst_data ={0};
 
 #endif
 
-extern int g_stop;
 
 #define LABEL_CAM_BUFF_SIZE 4
 const uint8_t label_cam_start_cmd[LABEL_CAM_BUFF_SIZE] = {0x9A, 0x9B, 0x01, 0x36};
@@ -597,8 +596,6 @@ void *thdRcvGatewayHandler(void *socketInfo)
 #endif
         //sleep(1);
         //usleep(50000); // 50ms
-        if (g_stop)
-			break;
     }
     close(_socketInfo.socketCon);
     printf("%s, rcvGateway exit.\n", _socketInfo.ipaddr);

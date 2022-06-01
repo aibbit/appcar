@@ -1,7 +1,6 @@
 #ifndef __START_LOCAL_NET_CAP_DATA_H__
 #define __START_LOCAL_NET_CAP_DATA_H__
 
-#define INFO_SIZE 6
 
 typedef struct MySocketInfo
 {

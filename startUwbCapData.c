@@ -12,12 +12,9 @@
 
 pthread_mutex_t g_uwb_mutex;
 pthread_t com_rcv_uwb_tid;
-int g_file_descriptor_uwb = 0;
+_UwbData g_uwb_loc;
 
-struct{
-	float x;
-	float y;
- } g_uwb_loc;
+int fd_uwb = 0;
 
 //数据帧头  999.999=   F0       FF       79        44
 //                   data0     data1    data2    data3
@@ -26,9 +23,7 @@ struct{
 static float exchange_data(char *data) {
   float float_data;
   float_data = *((float *)data);
-
   // printf("float_data = %f\n", float_data);
-
   return float_data;
 }
 
@@ -63,7 +58,7 @@ void ParseDataForUwb(char chr, int count) {
   g_uwb_loc.x = x0;
   g_uwb_loc.y = y0;
   pthread_mutex_unlock(&(g_uwb_mutex));
-  printf("UWB: ===>> (x,y) = (%f,%f)\n", g_uwb_loc.x, g_uwb_loc.y);
+  //printf("UWB: ===>> (x,y) = (%f,%f)\n", g_uwb_loc.x, g_uwb_loc.y);
 
   chrCnt = 0;
 }
@@ -74,16 +69,14 @@ void *startComRcvUwbData(void *args) {
   bzero(buffer, MAX_BUFF); //清除缓存
 
   while (1) {
-    int sz = rv1126_com_receive(g_file_descriptor_uwb, buffer, 36);
+    int sz = rv1126_com_receive(fd_uwb, buffer, 36);
     printf(" ==================>>>UWB       size = %d\n", sz);
     if (sz == -1) {
       fprintf(stderr, "uart read failed!\n");
       sleep(1);
     } else {
       for (int i = 0; i < sz; i++) {
-        printf("\n\n");
         ParseDataForUwb(buffer[i], sz);
-        printf("\n\n");
       }
     }
 
@@ -92,8 +85,8 @@ void *startComRcvUwbData(void *args) {
     // sleep(1);
   }
 
-  if (g_file_descriptor_uwb > -1) {
-    rv1126_com_close(g_file_descriptor_uwb);
+  if (fd_uwb > -1) {
+    rv1126_com_close(fd_uwb);
   }
 
   return NULL;
@@ -103,9 +96,9 @@ void startComInitForUWB() {
   int tryCounter = 0;
 
   while (1) {
-    g_file_descriptor_uwb = rv1126_com_open(3, 115200);
-    printf("=======startUwbCapData:com3===>>> g_file_descriptor_uwb = %d\n", g_file_descriptor_uwb);
-    if (g_file_descriptor_uwb <= -1) {
+    fd_uwb = rv1126_com_open(3, 115200);
+    printf("=======startUwbCapData:com3===>>> fd_uwb = %d\n", fd_uwb);
+    if (fd_uwb <= -1) {
       printf("Open COM3 fail, try another time ... \n");
       tryCounter++;
       if (tryCounter > 5) {
