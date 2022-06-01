@@ -44,7 +44,7 @@ void ParseDataForUwb(char chr, int count) {
   if ((chrBuf[0] != 0xF0) || (chrBuf[1] != 0xFF) || (chrBuf[2] != 0x79) ||
       (chrBuf[3] != 0x44)) {
 
-    Log(ERROR,"UWB-Error: %x, %x, %x, %x\n", chrBuf[0], chrBuf[1], chrBuf[2],chrBuf[3]);
+    Log(ERROR,"UWB-Error: %x, %x, %x, %x", chrBuf[0], chrBuf[1], chrBuf[2],chrBuf[3]);
     memcpy(&chrBuf[0], &chrBuf[1], 11);
     chrCnt--;
     return;
@@ -60,7 +60,7 @@ void ParseDataForUwb(char chr, int count) {
   g_uwb_loc.y = y0;
   pthread_mutex_unlock(&(g_uwb_mutex));
   //printf("UWB: ===>> (x,y) = (%f,%f)\n", g_uwb_loc.x, g_uwb_loc.y);
-  Log(DEBUG,"UWB: ===>> (x,y) = (%f,%f)\n", g_uwb_loc.x, g_uwb_loc.y);
+  Log(DEBUG,"UWB: ===>> (x,y) = (%.2f,%.2f)", g_uwb_loc.x, g_uwb_loc.y);
 
   chrCnt = 0;
 }
@@ -75,7 +75,7 @@ void *startComRcvUwbData(void *args) {
     //printf(" ==================>>>UWB       size = %d\n", sz);
     if (sz == -1) {
       //fprintf(stderr, "uart read failed!\n");
-      Log(ERROR,"UWB uart read failed!\n");
+      Log(ERROR,"UWB uart read failed!");
       sleep(1);
     } else {
       for (int i = 0; i < sz; i++) {
@@ -101,14 +101,14 @@ void startComInitForUWB() {
   while (1) {
     fd_uwb = rv1126_com_open(3, 115200);
     //printf("=======startUwbCapData:com3===>>> fd_uwb = %d\n", fd_uwb);
-    Log(INFO,"COM3===>>>fd_uwb=%d\n", fd_uwb);
+    Log(INFO,"COM3===>>>fd_uwb=%d", fd_uwb);
     if (fd_uwb <= -1) {
       //printf("Open COM3 fail, try another time ... \n");
-      Log(WARN,"Open COM3 fail, try another time ... \n");
+      Log(WARN,"Open COM3 fail, try another time ... ");
       tryCounter++;
       if (tryCounter > 5) {
         //printf("Open COM3 fail, end.\n");
-        Log(ERROR,"Open COM3 fail, end.\n");
+        Log(ERROR,"Open COM3 fail, end.");
         exit(EXIT_FAILURE);
       }
     } else {
@@ -120,7 +120,7 @@ void startComInitForUWB() {
   int err = pthread_create(&com_rcv_uwb_tid, NULL, startComRcvUwbData, NULL);
   if (0 != err) {
     //printf("can't create startComRcvUwbData thread!\n");
-    Log(ERROR,"can't create startComRcvUwbData thread!\n");
+    Log(ERROR,"can't create startComRcvUwbData thread!");
     exit(1);
   }
   return;

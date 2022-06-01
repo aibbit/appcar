@@ -31,7 +31,7 @@ void ParseDataForCtrlFdbk(char chr) {
   if ((chrBuf[0] != 0xAA) || (chrBuf[1] != 0xAA) || (chrBuf[2] != 0x01) ||
       (chrBuf[3] != 0x0D)) {
     //printf("Error:%x, %x, %x, %x\n", chrBuf[0], chrBuf[1], chrBuf[2],chrBuf[3]);
-    Log(ERROR,"Error:%x, %x, %x, %x\n", chrBuf[0], chrBuf[1], chrBuf[2],chrBuf[3]);
+    Log(WARN,"Error:%x, %x, %x, %x", chrBuf[0], chrBuf[1], chrBuf[2],chrBuf[3]);
     memcpy(&chrBuf[0], &chrBuf[1], 12);
     chrCnt--;
     return;
@@ -57,7 +57,7 @@ void ParseDataForCtrlFdbk(char chr) {
     g_gpd_key = tmpData;
     pthread_mutex_unlock(&(g_gpd_mutex));
 
-    Log(DEBUG,"Gpd key = %x",g_gpd_key.key);
+    //Log(DEBUG,"Gpd key = %x",g_gpd_key.key);
 
     return;
   }
@@ -71,12 +71,12 @@ void *startComRcvGamepadKey(void *args) {
   bzero(buffer, MAX_BUFF);
 
   //printf("============startcomRcvGamepadKey....11111====\n");
-  Log(INFO,"startcomRcvGamepadKey\n");
+  Log(INFO,"startcomRcvGamepadKey");
   while (1) {
     int sz = rv1126_com_receive(fd_gpd, buffer, 52);
     if (sz == -1) {
       //fprintf(stderr, "Com read failed!\n");
-      Log(ERROR,"Com read failed!\n");
+      Log(ERROR,"Com read failed!");
       usleep(500000);
       continue;
     }
@@ -100,14 +100,14 @@ void startComInitForGamePad() {
   while (1) {
     fd_gpd = rv1126_com_open(1, 115200);
     //printf("=======startComInitForGamePad:com1===>>> fd_gpd = %d\n",fd_gpd);
-    Log(INFO,"COM1===>>>fd_uwb=%d\n",fd_gpd);
+    Log(INFO,"COM1===>>>fd_uwb=%d",fd_gpd);
     if (fd_gpd <= -1) {
       //printf("Open COM1 fail, try another time ... \n");
-      Log(WARN,"Open COM1 fail, try another time ... \n");
+      Log(WARN,"Open COM1 fail, try another time ... ");
       tryCounter++;
       if (tryCounter > 5) {
         //printf("Open COM1 fail, end.\n");
-        Log(ERROR,"Open COM1 fail, try another time ... \n");
+        Log(ERROR,"Open COM1 fail, try another time ... ");
         exit(EXIT_FAILURE);
       }
     } else {
@@ -119,7 +119,7 @@ void startComInitForGamePad() {
   int err = pthread_create(&com_rcv_gpd_tid, NULL, startComRcvGamepadKey, NULL);
   if (0 != err) {
     //printf("can't create startComRcvGamepadKey thread!\n");
-    Log(ERROR,"can't create startComRcvGamepadKey thread!\n");
+    Log(ERROR,"can't create startComRcvGamepadKey thread!");
     exit(1);
   }
   return;

@@ -150,12 +150,12 @@ void sendInfoToLocalNet(_MySocketInfo skt, char info[], int size)
 		if (slen > 0)
 		{
 			//printf("\nGateway:%s:%d,send info oK!\n", skt.ipaddr, skt.port);
-            Log(DEBUG,"\nGateway:%s:%d,send info oK!\n", skt.ipaddr, skt.port);
+            //Log(DEBUG,"Gateway:%s:%d,send info oK!", skt.ipaddr, skt.port);
 		}
 		else
 		{
 			//printf("\nGateway: %s:%d, send info failed!\n", skt.ipaddr, skt.port);
-            Log(WARN,"\nGateway: %s:%d, send info failed!\n", skt.ipaddr, skt.port);
+            Log(WARN,"Gateway: %s:%d, send info failed!", skt.ipaddr, skt.port);
 		}
 	}
 }
