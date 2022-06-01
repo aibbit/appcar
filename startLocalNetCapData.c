@@ -7,12 +7,12 @@
 #include <signal.h>
 #include <arpa/inet.h>
 
-#include "appcar.h"
+#include "log.h"
 #include "startLocalNetCapData.h"
 
 
-#define USE_TEST
-#define USE_FEEDBACK
+//#define USE_TEST
+//#define USE_FEEDBACK
 
 // for test
 #if USE_TEST_CACHE
@@ -123,10 +123,10 @@ void label_cam_send_end(void)
 
 int releaseLocalNet()
 {
-    printf("waiting for exit!\n");
+    Log(INFO,"waiting for exit!\n");
     char *message;
     pthread_join(g_thdAccept, (void *)&message);
-    printf("%s\n", message);
+    Log(INFO,"%s\n", message);
     close(g_socketListen);
     return 0;
 }
@@ -149,11 +149,13 @@ void sendInfoToLocalNet(_MySocketInfo skt, char info[], int size)
 		int slen = write(skt.socketCon, (char *)info, size);
 		if (slen > 0)
 		{
-			printf("\nGateway:%s:%d,send info oK!\n", skt.ipaddr, skt.port);
+			//printf("\nGateway:%s:%d,send info oK!\n", skt.ipaddr, skt.port);
+            Log(DEBUG,"\nGateway:%s:%d,send info oK!\n", skt.ipaddr, skt.port);
 		}
 		else
 		{
-			printf("\nGateway: %s:%d, send info failed!\n", skt.ipaddr, skt.port);
+			//printf("\nGateway: %s:%d, send info failed!\n", skt.ipaddr, skt.port);
+            Log(WARN,"\nGateway: %s:%d, send info failed!\n", skt.ipaddr, skt.port);
 		}
 	}
 }
@@ -162,17 +164,17 @@ int startLocalNetInit()
 {
     memset(arrConSocket,0,sizeof(_MySocketInfo)*10);
 
-    printf("Socket start~\n");
+    Log(INFO,"Socket start~\n");
     // create one socket for tcp
     g_socketListen = socket(AF_INET, SOCK_STREAM, 0);
     if (g_socketListen < 0)
     {
-        printf("Create TCP socket fail!\n");
+        Log(INFO,"Create TCP socket fail!\n");
         exit(-1);
     }
     else
     {
-        printf("Create TCP socket ok!\n");
+        Log(INFO,"Create TCP socket ok!\n");
     }
     int opt = 1;
     setsockopt(g_socketListen, SOL_SOCKET, SO_REUSEADDR, (const void *)&opt, sizeof(opt));
@@ -185,21 +187,22 @@ int startLocalNetInit()
     if (bind(g_socketListen, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) != 0)
     {
         perror("Bind ip addr and port fail!\n");
+        Log(ERROR,"Bind ip addr and port fail!\n");
         exit(-1);
     }
     else
     {
-        printf("Bind ip addr and port ok!\n");
+        Log(INFO,"Bind ip addr and port ok!\n");
     }
     // listening to the port
     if (listen(g_socketListen, 10) != 0)
     {
-        printf("Keep listen fail!\n");
+        Log(WARN,"Keep listen fail!\n");
         exit(-1);
     }
     else
     {
-        printf("Keep listen ok!\n");
+        Log(INFO,"Keep listen ok!\n");
     }
     // start to accept
     pthread_create(&g_thdAccept, NULL, thdAcceptHandler, &g_socketListen);
@@ -219,13 +222,13 @@ void *thdAcceptHandler(void *g_socketListen)
             int socketCon = accept(_g_socketListen, (struct sockaddr *)(&client_addr), (socklen_t *)(&sockaddr_in_size));
             if (socketCon < 0)
             {
-                printf("Socket connect fail!\n");
+                Log(ERROR,"Socket connect fail!\n");
             }
             else
             {
-                printf("Socket connect ok, ip: %s:%d\r\n", inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
+                Log(INFO,"Socket connect ok, ip: %s:%d\r\n", inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
             }
-            printf("Connected socket:%d\n", socketCon);
+            Log(INFO,"Connected socket:%d\n", socketCon);
             // create one thread to deal with one client
             _MySocketInfo socketInfo;
             socketInfo.socketCon = socketCon;
@@ -249,20 +252,20 @@ void *thdAcceptHandler(void *g_socketListen)
             }
             else
             {
-                printf("Err: %s is not in field.\n", socketInfo.ipaddr);
+                Log(ERROR,"Err: %s is not in field.\n", socketInfo.ipaddr);
                 close(socketCon);
                 continue;
             }
             arrConSocket[conClientCount] = socketInfo;
             conClientCount++;
-            printf("Connected %d device.\n", conClientCount);
+            Log(INFO,"Connected %d device.\n", conClientCount);
 
             arrThrReceiveClient[thrReceiveClientCount] = thrReceive;
             thrReceiveClientCount++;
         }
         else
         {
-            printf("Received count(%d) is full.\n", thrReceiveClientCount);
+            Log(WARN,"Received count(%d) is full.\n", thrReceiveClientCount);
         }
 
         sleep(1);
@@ -285,7 +288,7 @@ void ParseDataForGateway(char chr)
 
     if ((chrBuf[0] != 0x8A) || (chrBuf[1] != 0x8B))
     {
-        printf("Error:%x %x\r\n", chrBuf[0], chrBuf[1]);
+        Log(ERROR,"Error:%x %x\r\n", chrBuf[0], chrBuf[1]);
         memcpy(&chrBuf[0], &chrBuf[1], 21);
         chrCnt--;
         return;
@@ -322,7 +325,7 @@ void ParseDataForGateway(char chr)
         if ((unsigned char)(sum & 0xFF) == sData[19])
         {
             chrCnt = 0;
-            printf("\n----------check SUM ok!----------\n");
+            //printf("\n----------check SUM ok!----------\n");
             // give the data to global data
             pthread_mutex_lock(&(g_gtwy_info_mutex));
             g_gateway_info = tmpData;
@@ -359,7 +362,7 @@ void ParseDataForBinCam(char chr)
 
     if ((BinCam_chrBuf[0] != 0xFF) || (BinCam_chrBuf[1] != 0xEE))
     {
-        printf("Error:%x %x\r\n", BinCam_chrBuf[0], BinCam_chrBuf[1]);
+        Log(ERROR,"Error:%x %x\r\n", BinCam_chrBuf[0], BinCam_chrBuf[1]);
         memcpy(&BinCam_chrBuf[0], &BinCam_chrBuf[1], 2);
         BinCam_chrCnt--;
         return;
@@ -383,7 +386,7 @@ void ParseDataForBinCam(char chr)
         if ((unsigned char)(sum & 0xFF) == BinCam_chrBuf[(BinCam_chrBuf[2]*4+3)])
         {
             BinCam_chrCnt = 0;
-            printf("\n----------check SUM ok!----------\n");
+            //printf("\n----------check SUM ok!----------\n");
             // give the data to global data
 
         for (int j = (BinCam_chrBuf[2]*4+3); j < (12*4+3); j++)
@@ -489,7 +492,7 @@ void ParseDataForImgLoc(char chr)
 
     if ((IMG_chrBuf[0] != 0x9A) || (IMG_chrBuf[1] != 0x9B))
     {
-        printf("Error:%x %x\r\n", IMG_chrBuf[0], IMG_chrBuf[1]);
+        Log(ERROR,"Error:%x %x\r\n", IMG_chrBuf[0], IMG_chrBuf[1]);
         memcpy(&IMG_chrBuf[0], &IMG_chrBuf[1], 3);
         IMG_chrCnt--;
         return;
@@ -509,7 +512,7 @@ void ParseDataForImgLoc(char chr)
         if ((unsigned char)(sum & 0xFF) == sData[1])
         {
             IMG_chrCnt = 0;
-            printf("\n----------check SUM ok!----------\n");
+            //printf("\n----------check SUM ok!----------\n");
             // give the data to global data
             pthread_mutex_lock(&(g_image_info_mutex));
             g_image_info = tmpData;
@@ -561,7 +564,7 @@ void *thdRcvGatewayHandler(void *socketInfo)
             conClientCount--;
             break;
         }
-        printf("%s:%d:len=%d: ", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
+        printf("%s:%d:len=%d: \n", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
 #ifdef USE_TEST
         for (int i = 0; i < buffer_length; i++)
         {
@@ -571,7 +574,6 @@ void *thdRcvGatewayHandler(void *socketInfo)
             }
         }
 #endif
-        printf("\n");
 
         if (buffer_length < 22)
             continue;
@@ -723,7 +725,7 @@ void *thdRcvImgLocHandler(void *socketInfo)
             conClientCount--;
             break;
         }
-        printf("%s:%d:len=%d: ", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
+        printf("%s:%d:len=%d: \n", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
 #ifdef USE_TEST
         for (int i = 0; i < buffer_length; i++)
         {
@@ -733,7 +735,6 @@ void *thdRcvImgLocHandler(void *socketInfo)
             }
         }
 #endif
-        printf("\n");
 
         if (buffer_length < 4)   //////cw
             continue;
@@ -759,7 +760,7 @@ void *thdRcvImgLocHandler(void *socketInfo)
         sleep(0.2);
     }
     close(_socketInfo.socketCon);
-    printf("%s, rcvImgLoc fail.\n", _socketInfo.ipaddr);
+    Log(ERROR,"%s, rcvImgLoc fail.\n", _socketInfo.ipaddr);
     memset(socketInfo, 0, sizeof(_MySocketInfo));
     return NULL;
 }

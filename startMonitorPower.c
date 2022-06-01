@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <pthread.h>
 
+#include "log.h"
 #include "startMonitorPower.h"
 #include "startLocalNetCapData.h"
 
@@ -20,19 +21,22 @@ void *startMonitorPower(void *args)
         pthread_mutex_unlock(&(g_gtwy_info_mutex));
         if ((15 < nCurrPower) && (nCurrPower <= 100))
         {
-            printf("Normal: Power(%d) is ok!\n", nCurrPower);
+            //printf("Normal: Power(%d) is ok!\n", nCurrPower);
+            Log(INFO,"Normal: Power(%d) is ok!\n", nCurrPower);
         }
         else if ((5 < nCurrPower) && (nCurrPower <= 15))
         {
-            printf("Warning: Power(%d) is low!\n", nCurrPower);
+            //printf("Warning: Power(%d) is low!\n", nCurrPower);
+            Log(WARN,"Warning: Power(%d) is low!\n", nCurrPower);
             // back to charge
         }
         else if ((0 <= nCurrPower) && (nCurrPower <= 5))
         {
-            printf("Warning: Power(%d) is too low! Stopping for help!\n", nCurrPower);
+            //printf("Warning: Power(%d) is too low! Stopping for help!\n", nCurrPower);
+            Log(WARN,"Warning: Power(%d) is too low! Stopping for help!\n", nCurrPower);
             // stop and wait for help
         }
-        sleep(1);
+        sleep(5);
     }
     return NULL;
 }

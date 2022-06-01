@@ -3,10 +3,10 @@
 #include <stdint.h>
 #include <pthread.h>
 
+#include "log.h"
 #include "startLocalNetCapData.h"
 #include "startUwbCapData.h"
 #include "startGamepadCapData.h"
-
 #include "startMonitorPower.h"
 #include "startMotiCtrlByManual.h"
 #include "startMotiCtrlByAuto.h"
@@ -23,19 +23,19 @@ int main(int argc, char *argv[])
 	err = pthread_create(&car_pwr_monitor_tid, NULL, startMonitorPower, NULL);
 	if (0 != err)
 	{
-		printf("can't create startMonitorPower thread!\n");
+		Log(ERROR,"can't create startMonitorPower thread!\n");
 		exit(1);
 	}
 	err = pthread_create(&car_manual_tid, NULL, startMotiCtrlByManual, NULL);
 	if (0 != err)
 	{
-		printf("can't create startCarByManual thread!\n");
+		Log(ERROR,"can't create startMotiCtrlByManual thread!\n");
 		exit(1);
 	}
 	err = pthread_create(&car_auto_tid, NULL, startMotiCtrlByAuto, NULL);
 	if (0 != err)
 	{
-		printf("can't create startCarByAuto thread!\n");
+		Log(ERROR,"can't create startMotiCtrlByAuto thread!\n");
 		exit(1);
 	}
 
