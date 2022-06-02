@@ -22,18 +22,18 @@ void *startMonitorPower(void *args)
         if ((15 < nCurrPower) && (nCurrPower <= 100))
         {
             //printf("Normal: Power(%d) is ok!\n", nCurrPower);
-            Log(INFO,"Normal: Power(%d) is ok!\n", nCurrPower);
+            Log(INFO,"Normal: Power(%d) is ok!", nCurrPower);
         }
         else if ((5 < nCurrPower) && (nCurrPower <= 15))
         {
             //printf("Warning: Power(%d) is low!\n", nCurrPower);
-            Log(WARN,"Warning: Power(%d) is low!\n", nCurrPower);
+            Log(WARN,"Warning: Power(%d) is low!", nCurrPower);
             // back to charge
         }
         else if ((0 <= nCurrPower) && (nCurrPower <= 5))
         {
             //printf("Warning: Power(%d) is too low! Stopping for help!\n", nCurrPower);
-            Log(WARN,"Warning: Power(%d) is too low! Stopping for help!\n", nCurrPower);
+            Log(WARN,"Warning: Power(%d) is too low! Stopping for help!", nCurrPower);
             // stop and wait for help
         }
         sleep(5);

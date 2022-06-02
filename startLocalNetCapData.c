@@ -564,7 +564,8 @@ void *thdRcvGatewayHandler(void *socketInfo)
             conClientCount--;
             break;
         }
-        printf("%s:%d:len=%d: \n", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
+        //printf("%s:%d:len=%d: \n", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
+        Log(DEBUG,"%s:%d:len=%d", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
 #ifdef USE_TEST
         for (int i = 0; i < buffer_length; i++)
         {

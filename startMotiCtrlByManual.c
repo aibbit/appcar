@@ -20,13 +20,12 @@ extern _UwbData g_uwb_loc;
 extern _MySocketInfo g_gatewaySocket;
 //global data end
 
+//global flag
 int g_mv_stop = 1;
-static uint8_t g_mv_spd_lock = 0;
-
-//////////cw begin
+int g_mv_spd_lock = 0;
 int g_m_suspend = 0;
 int g_a_suspend = 0;
-////////cw stop
+
 
 #define INFO_SIZE 6
 // start and no move
@@ -61,9 +60,9 @@ void *startMotiCtrlByManual(void *args) {
       // g_m_suspend=0;//cw
       // g_a_suspend=0;//cw
       g_mv_stop = 1;
-      memcpy(cmd, cmdStop, sizeof(cmd));
-      sendInfoToLocalNet(g_gatewaySocket, cmd, INFO_SIZE);
-      usleep(50000);
+      // memcpy(cmd, cmdStop, sizeof(cmd));
+      // sendInfoToLocalNet(g_gatewaySocket, cmd, INFO_SIZE);
+      // usleep(50000);
       g_mv_spd_lock = 0;
       speedLocked = 0;
       //	continue;
@@ -72,9 +71,9 @@ void *startMotiCtrlByManual(void *args) {
       g_m_suspend = 1; // cw\]
       g_a_suspend = 0; // cw
       g_mv_stop = 0;   //解除急停 cw
-      memcpy(cmd, cmdStart, sizeof(cmd));
-      sendInfoToLocalNet(g_gatewaySocket, cmd, INFO_SIZE);
-      usleep(50000);
+      // memcpy(cmd, cmdStart, sizeof(cmd));
+      // sendInfoToLocalNet(g_gatewaySocket, cmd, INFO_SIZE);
+      // usleep(50000);
       g_mv_spd_lock = 0;
       speedLocked = 0;
       //	continue;
@@ -83,12 +82,12 @@ void *startMotiCtrlByManual(void *args) {
       g_m_suspend = 0; // cw
       g_a_suspend = 1; // cw
       g_mv_stop = 0;   //解除急停 cw
-      memcpy(cmd, cmdStart, sizeof(cmd));
-      sendInfoToLocalNet(g_gatewaySocket, cmd, INFO_SIZE);
-      printf("g_a_suspend = %d, ", g_a_suspend);
-      usleep(50000);
-      g_mv_spd_lock = 0;
-      speedLocked = 0;
+      // memcpy(cmd, cmdStart, sizeof(cmd));
+      // sendInfoToLocalNet(g_gatewaySocket, cmd, INFO_SIZE);
+      // printf("g_a_suspend = %d, ", g_a_suspend);
+      // usleep(50000);
+      // g_mv_spd_lock = 0;
+      // speedLocked = 0;
       //	continue;
     }
 
@@ -96,12 +95,12 @@ void *startMotiCtrlByManual(void *args) {
     {
       if (g_mv_stop) {
         memcpy(cmd, cmdStop, sizeof(cmd));
-        cmd[2] = 2;
+        cmd[2] = 1;
         cmd[3] = 0;
         cmd[4] = 0;
         cmd[5] = cmdSum(cmd, (INFO_SIZE - 1));
         sendInfoToLocalNet(g_gatewaySocket, cmd, INFO_SIZE);
-        printf("///////////////////////////stop    Sucess ");
+        printf("stop    Sucess ");
       } else if (!g_mv_spd_lock) {
         memcpy(cmd, cmdStart, sizeof(cmd));
         cmd[2] = 1;
