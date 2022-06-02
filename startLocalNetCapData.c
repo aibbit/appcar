@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 
 #include "log.h"
+#include "utils.h"
 #include "startLocalNetCapData.h"
 
 
@@ -79,6 +80,57 @@ pthread_mutex_t g_image_info_mutex;
 _BinCamInfo g_bincam_info;
 pthread_mutex_t g_bincam_info_mutex;
 
+//control cmd start
+#define CMD_SIZE 6
+// angle 大于0右转 小于0左转
+//精度90/2^7-1度
+static uint8_t angle_cmd(float angle) {
+  uint8_t cmd = 0;
+  const float epslon = 1e-6;
+
+  if (angle > -1 * epslon && angle < epslon) // angle == 0
+    cmd = 0x00;
+  else if (angle > 0)
+    cmd = ((uint8_t)(angle * 127 / 90) & 0x7F);
+  else // angle < 0
+    cmd = ((uint8_t)(-1 * angle * 127 / 90) | 0x80);
+
+  return (cmd);
+}
+// speed 大于0前进 小于0后退
+//精度Vmax/2^7-1
+static uint8_t speed_cmd(float speed) {
+  uint8_t cmd = 0;
+  const float epslon = 1e-6;
+
+  if (speed > -1 * epslon && speed < epslon) // speed == 0
+    cmd = 0x00;
+  else if (speed > 0)
+    cmd = ((uint8_t)(speed * 127 / 90) & 0x7F);
+  else // speed < 0
+    cmd = ((uint8_t)(-1 * speed * 127 / 90) | 0x80);
+
+  return (cmd);
+}
+
+//发送控制命令
+// angle 大于0右转 小于0左转
+// speed 大于0前进 小于0后退
+void send_control_cmd(float angle,float speed){
+
+    uint8_t cmd[CMD_SIZE] = {0xCC, 0xCC, 0x01, 0x00, 0x00, 0x99};
+
+    cmd[3] = angle_cmd(angle); // move angle
+    cmd[4] = speed_cmd(speed); // move speed
+    cmd[5] = cmdSum(cmd, (CMD_SIZE - 1));
+
+    //Log(DEBUG, "cmd=%x %x %x %x %x", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4],cmd[5]);
+
+    pthread_mutex_lock(&(g_gtwy_info_mutex));
+    sendInfoToLocalNet(g_gatewaySocket, cmd, CMD_SIZE);
+    pthread_mutex_unlock(&(g_gtwy_info_mutex));
+}
+//control cmd end
 
 //向标识摄像头发送数据
  int label_cam_send_data(_MySocketInfo skt,const uint8_t info[], int size)
@@ -565,7 +617,7 @@ void *thdRcvGatewayHandler(void *socketInfo)
             break;
         }
         //printf("%s:%d:len=%d: \n", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
-        Log(DEBUG,"%s:%d:len=%d", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
+        //Log(DEBUG,"%s:%d:len=%d", _socketInfo.ipaddr, _socketInfo.port, buffer_length);
 #ifdef USE_TEST
         for (int i = 0; i < buffer_length; i++)
         {

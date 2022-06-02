@@ -1,16 +1,16 @@
 #include "kalman_filter.h"
 
 void Kalman_Init_X(Kalman1_TypeDef *KF) {
-    KF->Q = 0;       //过程噪声可以认为是0
-    KF->R = 0.05;    //给一个较小的值，可以在debug中调节
+    KF->Q = 0.05;       //过程噪声可以认为是0
+    KF->R = 0.2;    //给一个较小的值，可以在debug中调节
     KF->Kg = 0;
     KF->lastP = 1;   //lastP相当于上一次的值，初始值可以为1，不可以为0
     KF->x_hat = 0;
 }
 
 void Kalman_Init_Y(Kalman1_TypeDef *KF) {
-    KF->Q = 0;       //过程噪声可以认为是0
-    KF->R = 0.05;    //给一个较小的值，可以在debug中调节
+    KF->Q = 0.05;       //过程噪声可以认为是0
+    KF->R = 0.2;    //给一个较小的值，可以在debug中调节
     KF->Kg = 0;
     KF->lastP = 1;   //lastP相当于上一次的值，初始值可以为1，不可以为0
     KF->x_hat = 0;

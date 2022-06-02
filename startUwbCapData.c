@@ -60,7 +60,7 @@ void ParseDataForUwb(char chr, int count) {
   g_uwb_loc.y = y0;
   pthread_mutex_unlock(&(g_uwb_mutex));
   //printf("UWB: ===>> (x,y) = (%f,%f)\n", g_uwb_loc.x, g_uwb_loc.y);
-  Log(DEBUG,"UWB: ===>> (x,y) = (%.2f,%.2f)", g_uwb_loc.x, g_uwb_loc.y);
+  //Log(DEBUG,"UWB: ===>> (x,y) = (%.2f,%.2f)", g_uwb_loc.x, g_uwb_loc.y);
 
   chrCnt = 0;
 }

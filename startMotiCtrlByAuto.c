@@ -1,17 +1,17 @@
+#include <math.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <unistd.h>
-#include <pthread.h>
 
-#include "startGamepadCapData.h"
-#include "startLocalNetCapData.h"
-#include "startUwbCapData.h"
 #include "kalman_filter.h"
 #include "log.h"
 #include "math_calc.h"
+#include "startGamepadCapData.h"
+#include "startLocalNetCapData.h"
+#include "startUwbCapData.h"
 #include "utils.h"
 
 #define CMD_SIZE 6
@@ -20,14 +20,9 @@ extern _MySocketInfo g_gatewaySocket;
 extern _GatewayInfo g_gateway_info; //网关
 extern pthread_mutex_t g_gtwy_info_mutex;
 
-extern _UwbData g_uwb_loc;//uwb数据
+extern _UwbData g_uwb_loc; // uwb数据
 
-extern int g_a_suspend;//手柄开启自动模式flag
-
-// static char turn_left(float angle) { return (ch); }
-// static char turn_right(float angle) { return (ch); }
-// static char back(float speed) { return (ch); }
-// static char straight(float speed) { return (ch); }
+extern int g_a_suspend; //手柄开启自动模式flag
 
 //滤波器
 _UwbData filter_debounce(_UwbData now_uwb) {
@@ -41,6 +36,34 @@ _UwbData filter_debounce(_UwbData now_uwb) {
   data.y = Kalman1_Filter(&KF_Y, now_uwb.y);
 
   return data;
+}
+
+//保存uwb数据到文件 测试滤波器
+void save_uwb_data(_UwbData data1,_UwbData data2) {
+  FILE *fp1 = NULL;
+  char file_name1[64] = {0};
+  char buf1[1024] = {0};
+
+   FILE *fp2 = NULL;
+  char file_name2[64] = {0};
+  char buf2[1024] = {0};
+
+  sprintf(file_name1, "UwbDataRaw.csv");
+  sprintf(buf1,"%f,%f\n",data1.x,data1.y);
+
+  if ((fp1 = fopen(file_name1, "a+")) != NULL) {
+    fprintf(fp1, "%s", buf1);
+    fclose(fp1);
+  }
+
+  sprintf(file_name2, "UwbDataFilter.csv");
+  sprintf(buf2,"%f,%f\n",data2.x,data2.y);
+
+  if ((fp2 = fopen(file_name2, "a+")) != NULL) {
+    fprintf(fp2, "%s", buf2);
+    fclose(fp2);
+  }
+
 }
 
 //根据路径点计算偏转角度
@@ -60,7 +83,6 @@ double path_track(Point2d now, Point2d start, Point2d end, double theta) {
 
   const int db = 4;
   double q1 = sqrt(fabs(db / ((db - d) + 1e-10)));
-
   double si_dot;
 
   if (tmp < 0)
@@ -68,8 +90,12 @@ double path_track(Point2d now, Point2d start, Point2d end, double theta) {
   else
     si_dot = q1 * d;
 
-  if (fabs(si_dot) > 30)
+  if (fabs(si_dot) > 30)//过大限制
     si_dot = 30;
+
+  if (fabs(si_dot) < 2)//过小限制
+    si_dot = 0;
+
 
   return si_dot;
 }
@@ -80,11 +106,12 @@ void *startMotiCtrlByAuto(void *args) {
   _GatewayInfo gwInfo;
   _UwbData uwb_now;
 
-  Point2d start = {0, 3};
-  Point2d end = {40, 3};
+  Point2d start = {2, 0};
+  Point2d end = {2, 10};
   Point2d now = start;
 
   float angle = 0;
+  float speed = 30;
 
   while (1) {
     pthread_mutex_lock(&(g_gtwy_info_mutex));
@@ -92,40 +119,24 @@ void *startMotiCtrlByAuto(void *args) {
     pthread_mutex_unlock(&(g_gtwy_info_mutex));
 
     uwb_now = filter_debounce(g_uwb_loc);
-    //Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
-    //Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
+    Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
+    Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
+    save_uwb_data(g_uwb_loc,uwb_now);
 
     if (g_a_suspend) // Gpd开启自动模式
     {
       now.x_ = uwb_now.x;
       now.y_ = uwb_now.y;
 
-      if (dist(&now, &end) > 1) {
+      if (dist(&now, &end) > 1) { //未到达终点
 
         // path_plan();
         angle = path_track(now, start, end, 0);
-        Log(DEBUG,"calc_angle=%.2f",angle);
+        Log(DEBUG, "calc_angle=%.2f", angle);
 
-        //发送控制命令
-        cmd[2] = 1;
-        cmd[3] = (char)-0x30; // move angle
-        cmd[4] = (char)-0x30;  // move speed
-        cmd[5] = cmdSum(cmd, (CMD_SIZE - 1));
-        Log(DEBUG,"cmd=%x %x %x %x %x",cmd[0],cmd[1],cmd[2],cmd[3],cmd[4],cmd[5]);
-
-        pthread_mutex_lock(&(g_gtwy_info_mutex));
-        sendInfoToLocalNet(g_gatewaySocket, cmd, CMD_SIZE);
-        pthread_mutex_unlock(&(g_gtwy_info_mutex));
-      } else {
-        //发送控制命令
-        cmd[2] = 1;
-        cmd[3] = 0; // move angle
-        cmd[4] = 0; // move speed
-        cmd[5] = cmdSum(cmd, (CMD_SIZE - 1));
-
-        pthread_mutex_lock(&(g_gtwy_info_mutex));
-        sendInfoToLocalNet(g_gatewaySocket, cmd, CMD_SIZE);
-        pthread_mutex_unlock(&(g_gtwy_info_mutex));
+        send_control_cmd(angle, speed); //发送控制命令
+      } else { //到达终点 停车
+        send_control_cmd(0, 0); //发送控制命令
       }
     }
     usleep(50000);
