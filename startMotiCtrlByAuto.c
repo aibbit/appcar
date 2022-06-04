@@ -6,7 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "kalman_filter.h"
+#include "filter.h"
 #include "log.h"
 #include "math_calc.h"
 #include "startGamepadCapData.h"
@@ -27,43 +27,30 @@ extern int g_a_suspend; //手柄开启自动模式flag
 //滤波器
 _UwbData filter_debounce(_UwbData now_uwb) {
   _UwbData data;
-  Kalman1_TypeDef KF_X; // KF滤波器
-  Kalman1_TypeDef KF_Y; // KF滤波器
+  Kalman_TypeDef KF_X; // KF滤波器
+  Kalman_TypeDef KF_Y; // KF滤波器
   Kalman_Init_X(&KF_X);
   Kalman_Init_Y(&KF_Y);
 
-  data.x = Kalman1_Filter(&KF_X, now_uwb.x);
-  data.y = Kalman1_Filter(&KF_Y, now_uwb.y);
+  data.x = Kalman_Filter(&KF_X, now_uwb.x);
+  data.y = Kalman_Filter(&KF_Y, now_uwb.y);
 
   return data;
 }
 
 //保存uwb数据到文件 测试滤波器
-void save_uwb_data(_UwbData data1,_UwbData data2) {
-  FILE *fp1 = NULL;
-  char file_name1[64] = {0};
-  char buf1[1024] = {0};
+void save_uwb_data(_UwbData data1,char *filename,int namesize) {
+  FILE *fp = NULL;
+  char file_name[128] = {0};
+  char buf[1024] = {0};
 
-   FILE *fp2 = NULL;
-  char file_name2[64] = {0};
-  char buf2[1024] = {0};
+  memcpy(file_name, filename,namesize);
+  sprintf(buf,"%f,%f\n",data1.x,data1.y);
 
-  sprintf(file_name1, "UwbDataRaw.csv");
-  sprintf(buf1,"%f,%f\n",data1.x,data1.y);
-
-  if ((fp1 = fopen(file_name1, "a+")) != NULL) {
-    fprintf(fp1, "%s", buf1);
-    fclose(fp1);
+  if ((fp = fopen(file_name, "a+")) != NULL) {
+    fprintf(fp, "%s", buf);
+    fclose(fp);
   }
-
-  sprintf(file_name2, "UwbDataFilter.csv");
-  sprintf(buf2,"%f,%f\n",data2.x,data2.y);
-
-  if ((fp2 = fopen(file_name2, "a+")) != NULL) {
-    fprintf(fp2, "%s", buf2);
-    fclose(fp2);
-  }
-
 }
 
 //根据路径点计算偏转角度
@@ -121,7 +108,10 @@ void *startMotiCtrlByAuto(void *args) {
     uwb_now = filter_debounce(g_uwb_loc);
     Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
     Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
-    save_uwb_data(g_uwb_loc,uwb_now);
+    save_uwb_data(g_uwb_loc,"UwbDataRaw.csv",sizeof("UwbDataRaw.csv"));
+    save_uwb_data(uwb_now,"UwbDataKF.csv",sizeof("UwbDataKF.csv"));
+
+
 
     if (g_a_suspend) // Gpd开启自动模式
     {

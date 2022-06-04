@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <signal.h>
 #include <arpa/inet.h>
 
 #include "log.h"
@@ -23,12 +23,9 @@ _TestBinCamCache  g_BinCam_tst_data ={0};
 
 #endif
 
-
 #define LABEL_CAM_BUFF_SIZE 4
 const uint8_t label_cam_start_cmd[LABEL_CAM_BUFF_SIZE] = {0x9A, 0x9B, 0x01, 0x36};
 const uint8_t label_cam_end_cmd[LABEL_CAM_BUFF_SIZE] = {0x9A, 0x9B, 0x02, 0x37};
-
-
 
 //server
 #define IP_ADDR "192.168.1.100"
@@ -175,10 +172,10 @@ void label_cam_send_end(void)
 
 int releaseLocalNet()
 {
-    Log(INFO,"waiting for exit!\n");
+    Log(INFO,"waiting for exit!");
     char *message;
     pthread_join(g_thdAccept, (void *)&message);
-    Log(INFO,"%s\n", message);
+    Log(INFO,"%s", message);
     close(g_socketListen);
     return 0;
 }
@@ -216,17 +213,17 @@ int startLocalNetInit()
 {
     memset(arrConSocket,0,sizeof(_MySocketInfo)*10);
 
-    Log(INFO,"Socket start~\n");
+    Log(INFO,"Socket start~");
     // create one socket for tcp
     g_socketListen = socket(AF_INET, SOCK_STREAM, 0);
     if (g_socketListen < 0)
     {
-        Log(INFO,"Create TCP socket fail!\n");
+        Log(INFO,"Create TCP socket fail!");
         exit(-1);
     }
     else
     {
-        Log(INFO,"Create TCP socket ok!\n");
+        Log(INFO,"Create TCP socket ok!");
     }
     int opt = 1;
     setsockopt(g_socketListen, SOL_SOCKET, SO_REUSEADDR, (const void *)&opt, sizeof(opt));
@@ -238,23 +235,23 @@ int startLocalNetInit()
     server_addr.sin_port = htons(SERVER_PORT);
     if (bind(g_socketListen, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) != 0)
     {
-        perror("Bind ip addr and port fail!\n");
-        Log(ERROR,"Bind ip addr and port fail!\n");
+        perror("Bind ip addr and port fail!");
+        Log(ERROR,"Bind ip addr and port fail!");
         exit(-1);
     }
     else
     {
-        Log(INFO,"Bind ip addr and port ok!\n");
+        Log(INFO,"Bind ip addr and port ok!");
     }
     // listening to the port
     if (listen(g_socketListen, 10) != 0)
     {
-        Log(WARN,"Keep listen fail!\n");
+        Log(WARN,"Keep listen fail!");
         exit(-1);
     }
     else
     {
-        Log(INFO,"Keep listen ok!\n");
+        Log(INFO,"Keep listen ok!");
     }
     // start to accept
     pthread_create(&g_thdAccept, NULL, thdAcceptHandler, &g_socketListen);
