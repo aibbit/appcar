@@ -1,21 +1,20 @@
 #include "filter.h"
 #include "stdlib.h"
-#include "string.h"
 
 // KF start
 void Kalman_Init_X(Kalman_TypeDef *KF) {
-  KF->Q = 0.05; //过程噪声可以认为是0
-  KF->R = 0.2;  //给一个较小的值，可以在debug中调节
+  KF->Q = 1e-6; //预测(过程)噪声方差
+  KF->R = 0.002;  //测量(观测)噪声方差 取正态分布的(3σ)^2作为r的初始化值
   KF->Kg = 0;
-  KF->lastP = 1; // lastP相当于上一次的值，初始值可以为1，不可以为0
+  KF->lastP = 1; // lastP相当于上一次的值,初始值可以为1,不可以为0
   KF->x_hat = 0;
 }
 
 void Kalman_Init_Y(Kalman_TypeDef *KF) {
-  KF->Q = 0.05; //过程噪声可以认为是0
-  KF->R = 0.2;  //给一个较小的值，可以在debug中调节
+  KF->Q = 1e-6;
+  KF->R = 0.002;
   KF->Kg = 0;
-  KF->lastP = 1; // lastP相当于上一次的值，初始值可以为1，不可以为0
+  KF->lastP = 1;
   KF->x_hat = 0;
 }
 

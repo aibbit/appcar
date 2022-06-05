@@ -1,8 +1,6 @@
 #include <math.h>
 #include "math_calc.h"
 
-
-
 #define SQ(x) ((x)*(x))
 #define PI 3.14159265L
 #define Degree2Rad	0.01745329251994327813L	//角度转弧度
@@ -16,6 +14,23 @@ int sign(double x) {
     return -1;
   else
     return 0;
+}
+
+//求num平方根的倒数
+//等价于 1.0/sqrt(num)
+double Quick_rsqrt(double num)
+{
+    long i;
+    float x2, y;
+    const float threehalfs = 1.5f;
+    x2 = (float)num * 0.5f;
+    y = (float)num;
+    i = *(long*)&y;
+    i = 0x5f3759df - (i >> 1);
+    y = *(float*)&i;
+    y = y * (threehalfs - (x2 * y * y));
+    y = y * (threehalfs - (x2 * y * y));
+    return y;
 }
 
 //计算两点间距离
