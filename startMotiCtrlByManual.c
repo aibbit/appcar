@@ -68,13 +68,13 @@ void *startMotiCtrlByManual(void *args) {
 
     if (g_m_suspend) //手动控制才执行此段程序
     {
-      if (g_mv_stop) {
+      if (g_mv_stop) {//停车
         cmd[3] = 0;
         cmd[4] = 0;
         cmd[5] = cmdSum(cmd, (CMD_SIZE - 1));
         sendInfoToLocalNet(g_gatewaySocket, cmd, CMD_SIZE);
         //Log(DEBUG,"Stop Mode");
-      } else {
+      } else {//手柄控制
         cmd[3] = turnKeyValue(tmp.lrk_h);
         cmd[4] = turnKeyValue(tmp.lrk_v);
         cmd[5] = cmdSum(cmd, (CMD_SIZE - 1));

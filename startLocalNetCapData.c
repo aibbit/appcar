@@ -271,13 +271,13 @@ void *thdAcceptHandler(void *g_socketListen)
             int socketCon = accept(_g_socketListen, (struct sockaddr *)(&client_addr), (socklen_t *)(&sockaddr_in_size));
             if (socketCon < 0)
             {
-                Log(ERROR,"Socket connect fail!\n");
+                Log(ERROR,"Socket connect fail!");
             }
             else
             {
-                Log(INFO,"Socket connect ok, ip: %s:%d\r\n", inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
+                Log(INFO,"Socket connect ok, ip: %s:%d", inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
             }
-            Log(INFO,"Connected socket:%d\n", socketCon);
+            Log(INFO,"Connected socket:%d", socketCon);
             // create one thread to deal with one client
             _MySocketInfo socketInfo;
             socketInfo.socketCon = socketCon;
@@ -301,20 +301,20 @@ void *thdAcceptHandler(void *g_socketListen)
             }
             else
             {
-                Log(ERROR,"Err: %s is not in field.\n", socketInfo.ipaddr);
+                Log(ERROR,"Err: %s is not in field.", socketInfo.ipaddr);
                 close(socketCon);
                 continue;
             }
             arrConSocket[conClientCount] = socketInfo;
             conClientCount++;
-            Log(INFO,"Connected %d device.\n", conClientCount);
+            Log(INFO,"Connected %d device.", conClientCount);
 
             arrThrReceiveClient[thrReceiveClientCount] = thrReceive;
             thrReceiveClientCount++;
         }
         else
         {
-            Log(WARN,"Received count(%d) is full.\n", thrReceiveClientCount);
+            Log(WARN,"Received count(%d) is full.", thrReceiveClientCount);
         }
 
         sleep(1);
@@ -337,7 +337,7 @@ void ParseDataForGateway(char chr)
 
     if ((chrBuf[0] != 0x8A) || (chrBuf[1] != 0x8B))
     {
-        Log(ERROR,"Error:%x %x\r\n", chrBuf[0], chrBuf[1]);
+        Log(ERROR,"Error:%x %x", chrBuf[0], chrBuf[1]);
         memcpy(&chrBuf[0], &chrBuf[1], 21);
         chrCnt--;
         return;
@@ -411,7 +411,7 @@ void ParseDataForBinCam(char chr)
 
     if ((BinCam_chrBuf[0] != 0xFF) || (BinCam_chrBuf[1] != 0xEE))
     {
-        Log(ERROR,"Error:%x %x\r\n", BinCam_chrBuf[0], BinCam_chrBuf[1]);
+        Log(ERROR,"Error:%x %x", BinCam_chrBuf[0], BinCam_chrBuf[1]);
         memcpy(&BinCam_chrBuf[0], &BinCam_chrBuf[1], 2);
         BinCam_chrCnt--;
         return;
@@ -541,7 +541,7 @@ void ParseDataForImgLoc(char chr)
 
     if ((IMG_chrBuf[0] != 0x9A) || (IMG_chrBuf[1] != 0x9B))
     {
-        Log(ERROR,"Error:%x %x\r\n", IMG_chrBuf[0], IMG_chrBuf[1]);
+        Log(ERROR,"Error:%x %x", IMG_chrBuf[0], IMG_chrBuf[1]);
         memcpy(&IMG_chrBuf[0], &IMG_chrBuf[1], 3);
         IMG_chrCnt--;
         return;
