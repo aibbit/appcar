@@ -27,13 +27,21 @@ int g_a_suspend = 0;
 
 #define CMD_SIZE 6
 
-static char turnKeyValue(uint8_t key) {
-  if (key > 0x80)
-    return ((char)key & 0x7F);
-  else if (key < 0x7F)
-    return (((char)abs((key - 0x7F))) | 0x80);
-  else
-    return 0;
+// static char turnKeyValue(uint8_t key) {
+//   if (key > 0x80)
+//     return ((char)key & 0x7F);
+//   else if (key < 0x7F)
+//     return (((char)abs((key - 0x7F))) | 0x80);
+//   else
+//     return 0;
+// }
+
+static char turnKeyValue(uint8_t key)
+{
+	if (key > 0x80)
+		return (char)key;
+	else if (key < 0x80)
+		return (char)abs((key - 0x7F));
 }
 
 void *startMotiCtrlByManual(void *args) {
@@ -75,8 +83,8 @@ void *startMotiCtrlByManual(void *args) {
         sendInfoToLocalNet(g_gatewaySocket, cmd, CMD_SIZE);
         //Log(DEBUG,"Stop Mode");
       } else {//手柄控制
-        cmd[3] = turnKeyValue(tmp.lrk_h);
-        cmd[4] = turnKeyValue(tmp.lrk_v);
+        cmd[3] = turnKeyValue(tmp.rrk_h);// move angle 右边摇杆控制角度
+        cmd[4] = turnKeyValue(tmp.lrk_v);// move speed 左边摇杆控制速度
         cmd[5] = cmdSum(cmd, (CMD_SIZE - 1));
         sendInfoToLocalNet(g_gatewaySocket, cmd, CMD_SIZE);
         //Log(DEBUG,"Manual Mode");
