@@ -23,26 +23,21 @@ _TestBinCamCache  g_BinCam_tst_data ={0};
 
 #endif
 
+//label cam start
 #define LABEL_CAM_BUFF_SIZE 4
 const uint8_t label_cam_start_cmd[LABEL_CAM_BUFF_SIZE] = {0x9A, 0x9B, 0x01, 0x36};
 const uint8_t label_cam_end_cmd[LABEL_CAM_BUFF_SIZE] = {0x9A, 0x9B, 0x02, 0x37};
+//label cam end
 
 //server
 #define IP_ADDR "192.168.1.100"
-
-//#define IP_ADDR "192.168.3.49"
+#define SERVER_PORT 6000
 
 //client
-
-//#define GATEWAY_IP_ADDR "192.168.3.30"
 #define GATEWAY_IP_ADDR "192.168.1.30"
-
-
 #define BINCAM_IP_ADDR "192.168.1.32"
+#define IMGLOC_IP_ADDR "192.168.1.31"
 
-//#define IMGLOC_IP_ADDR "192.168.1.33"
-#define IMGLOC_IP_ADDR "192.168.1.31"    ////cw
-#define SERVER_PORT 6000
 
 void *thdRcvGatewayHandler(void *socketInfo);
 void *thdRcvBinCamHandler(void *socketInfo);

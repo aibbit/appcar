@@ -131,17 +131,12 @@ typedef struct testGateWayCache
 int startLocalNetInit();
 int releaseLocalNet();
 
-void *startCapDataOfBinoCam(void *);
-void *startCapDataOfImgLocation(void *);
-void *startCapDataOfGateway(void *);
-
-void *startLocalNetHeart(void *);
 
 void sendInfoToLocalNet(_MySocketInfo, char[], int size);
 
-void label_cam_send_start(void);
-void label_cam_send_end(void);
+void label_cam_send_start(void);//向标识摄像头发送开始命令
+void label_cam_send_end(void);//向标识摄像头发送结束命令
 
-void send_control_cmd(float angle,float speed);
+void send_control_cmd(float angle,float speed);//向网关发送控制命令(角度,速度)
 
 #endif // __START_LOCAL_NET_CAP_DATA_H__
