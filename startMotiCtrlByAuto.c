@@ -57,19 +57,19 @@ void save_uwb_data(_UwbData data1,char *filename,int namesize) {
 //TODO根据路径点计算偏转角度
 double path_track(Point2d now, Point2d start, Point2d end) {
 
-  const int v = 10;
+  const int v = 10;//速度
 
   // To check whether the point is left or right of the desired path
   double d = 0;
   double tmp = (now.x_ - start.x_) * (end.y_ - start.y_) -
                (now.y_ - start.y_) * (end.x_ - start.x_);
 
-  if (tmp < 0)
+  if (tmp < 0)//点now在start和end确立的直线的左边
     d = point_to_line(&now, &start, &end); // left
   else
     d = -point_to_line(&now, &start, &end); // right
 
-  const int db = 1;//限制偏移尺寸?
+  const int db = 2;//限制偏移尺寸?
   double q1 = sqrt(fabs(db / ((db - d) + 1e-10)));
   double si_dot;
 
@@ -79,7 +79,7 @@ double path_track(Point2d now, Point2d start, Point2d end) {
     si_dot = 10 * q1 * d;
 
   if (fabs(si_dot) > 30)//过大限制
-    si_dot = 45;
+    si_dot = 30;
   // if (fabs(si_dot) < 2)//过小限制
   //   si_dot = 0;
 
