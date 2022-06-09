@@ -3,7 +3,7 @@
 
 // KF start
 void Kalman_Init_X(Kalman_TypeDef *KF) {
-  KF->Q = 1e-6; //预测(过程)噪声方差
+  KF->Q = 0; //预测(过程)噪声方差
   KF->R = 0.002;  //测量(观测)噪声方差 取正态分布的(3σ)^2作为r的初始化值
   KF->Kg = 0;
   KF->lastP = 1; // lastP相当于上一次的值,初始值可以为1,不可以为0
@@ -11,7 +11,7 @@ void Kalman_Init_X(Kalman_TypeDef *KF) {
 }
 
 void Kalman_Init_Y(Kalman_TypeDef *KF) {
-  KF->Q = 1e-6;
+  KF->Q = 0;
   KF->R = 0.002;
   KF->Kg = 0;
   KF->lastP = 1;
