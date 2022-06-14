@@ -33,12 +33,10 @@ typedef struct GatewayInfo
     uint8_t yawL;
 } _GatewayInfo;
 
-//////////////////////////////////////cw begin
-///////数据形式需要修改
 typedef struct IMGLOCInfo
 {
     uint8_t head[2];
-    uint8_t theate;
+    uint8_t theta;
 } _IMGLOCInfo;
 
 typedef struct BinCamInfo
@@ -95,10 +93,15 @@ typedef struct BinCamInfo
     uint8_t width_12;
 } _BinCamInfo;
 
-/////////////////////////////////////cw end
+typedef struct RV3399Info
+{
+    uint8_t head[2];
+    uint8_t symbol;
+    uint8_t theta_gyro;
+    uint8_t theta_cam;
+} _RV3399Info;
 
 #if USE_TEST_CACHE
-////////////////////////////////cw begin
 
 typedef struct testBinCamCache
 {
@@ -117,7 +120,7 @@ typedef struct testIMGLOCCache
     pthread_mutex_t mutex;
 } _TestIMGLOCCache;
 
-////////////////////////////////cw end
+
 typedef struct testGateWayCache
 {
     int len[2];
@@ -131,10 +134,11 @@ typedef struct testGateWayCache
 int startLocalNetInit();
 int releaseLocalNet();
 
-
 void sendInfoToLocalNet(_MySocketInfo, char[], int size);
 
-void label_cam_send_start(void);//向标识摄像头发送开始命令
+
+void label_cam_send_start(int8_t x,int8_t y);//向标识摄像头发送开始命令
+void label_cam_send_heart(void);//向标识摄像头发送心跳
 void label_cam_send_end(void);//向标识摄像头发送结束命令
 
 void send_control_cmd(float angle,float speed);//向网关发送控制命令(角度,速度)
