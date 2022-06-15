@@ -18,7 +18,7 @@ int sign(double x) {
 
 //求num平方根的倒数
 //等价于 1.0/sqrt(num)
-double Quick_rsqrt(double num)
+double q_rsqrt(double num)
 {
     long i;
     float x2, y;
@@ -54,7 +54,7 @@ double point_to_line(Point2d *point, Point2d *line_point_1, Point2d *line_point_
       (line_point_2->x_ - line_point_1->x_);
   b = line_point_2->y_ - line_point_2->x_ * k;
 
-  double res = fabs(k * point->x_ - point->y_ + b) / sqrt(k * k + 1);
+  double res = fabs(k * point->x_ - point->y_ + b) * q_rsqrt( SQ(k) + 1);
 
   return res;
 }
