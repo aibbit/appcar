@@ -2,8 +2,8 @@
 #define __START_UWB_CAP_DATA_H__
 
 typedef struct comUwbData {
-    float x;
-    float y;
+    double x;
+    double y;
 } _UwbData;
 
 void startComInitForUWB();

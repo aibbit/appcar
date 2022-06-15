@@ -14,24 +14,28 @@
 #include "startUwbCapData.h"
 #include "utils.h"
 
-#define CMD_SIZE 6
-
-extern _MySocketInfo g_gatewaySocket;
-extern _GatewayInfo g_gateway_info; //网关
 extern pthread_mutex_t g_gtwy_info_mutex;
-extern _RV3399Info g_rv3399_info;
+extern _GatewayInfo g_gateway_info; // 网关
 
+extern _RV3399Info g_rv3399_info; // 3399摄像头-陀螺仪
+
+extern pthread_mutex_t g_uwb_mutex;
 extern _UwbData g_uwb_loc; // uwb数据
 
 extern int g_a_suspend; //手柄开启自动模式flag
 
+//滤波器参数
+Kalman_TypeDef KF_X; // UWB_X
+Kalman_TypeDef KF_Y; // UWB_Y
+
 // UWB滤波器使用
+void kf_init(void){
+  Kalman_Init(&KF_X,1e-6,0.002);
+  Kalman_Init(&KF_Y,1e-6,0.002);
+}
+
 _UwbData filter_debounce(_UwbData now_uwb) {
   _UwbData data;
-  Kalman_TypeDef KF_X; // KF滤波器
-  Kalman_TypeDef KF_Y; // KF滤波器
-  Kalman_Init_X(&KF_X);
-  Kalman_Init_Y(&KF_Y);
 
   data.x = Kalman_Filter(&KF_X, now_uwb.x);
   data.y = Kalman_Filter(&KF_Y, now_uwb.y);
@@ -79,13 +83,13 @@ int parse_gyro(_RV3399Info g_rv3399_info) {
 /**
  * @brief 根据前后陀螺仪数值，计算差值，正值->顺时针转过theta
  *
- * @param first
+ * @param init
  * @param now
- * @return float
+ * @return int
  **/
-float calc_gyro(float init, float now) {
+int calc_gyro(int init, int now) {
 
-  float theta = 0;
+  int theta = 0;
   theta = now - init;
 
   if (theta <= -180) {
@@ -108,7 +112,39 @@ float calc_gyro(float init, float now) {
  * @param gyro 陀螺仪偏角
  * @return double 计算的转角
 **/
-double path_track(Point2d now, Point2d start, Point2d end,float gyro) {
+// double path_track(Point2d now, Point2d start, Point2d end,float gyro) {
+
+//   const int v = 10; //速度
+
+//   // To check whether the point is left or right of the desired path
+//   double d = 0;
+//   double tmp = (now.x_ - start.x_) * (end.y_ - start.y_) -
+//                (now.y_ - start.y_) * (end.x_ - start.x_);
+
+//   if (tmp < 0) //点now在start和end确立的直线的左边
+//     d = point_to_line(&now, &start, &end); // left
+//   else
+//     d = -point_to_line(&now, &start, &end); // right
+
+//   double si_p = atan2((end.y_ - start.y_), (end.x_ - start.x_)); // si desired
+
+//   const int db = 2;//限制偏移尺寸?
+//   const int q2 = 1;
+//   double q1 = sqrt(fabs(db / ((db - d) + 1e-10)));
+//   double vd = v * sin(gyro - si_p); // d_dot
+//   double si_dot = -(q1 * d + sqrt(2 * q1 + q2 * q2) * vd);
+
+//   si_dot *= sign(tmp);
+
+//   if (fabs(si_dot) > 30) //过大限制
+//     si_dot = 30;
+//   // if (fabs(si_dot) < 2)//过小限制
+//   //   si_dot = 0;
+
+//   return si_dot;
+// }
+
+double path_track(Point2d now, Point2d start, Point2d end) {
 
   const int v = 10; //速度
 
@@ -122,19 +158,11 @@ double path_track(Point2d now, Point2d start, Point2d end,float gyro) {
   else
     d = -point_to_line(&now, &start, &end); // right
 
-  double si_p = atan2((end.y_ - start.y_), (end.x_ - start.x_)); // si desired
-
-  const int db = 2;//限制偏移尺寸?
-  const int q2 = 1;
-  double q1 = sqrt(fabs(db / ((db - d) + 1e-10)));
-  double vd = v * sin(gyro - si_p); // d_dot
-  double si_dot = -(q1 * d + sqrt(2 * q1 + q2 * q2) * vd);
-
-  si_dot *= sign(tmp);
+  float si_dot = 30 * d * sign(tmp);
 
   if (fabs(si_dot) > 30) //过大限制
     si_dot = 30;
-  // if (fabs(si_dot) < 2)//过小限制
+  // if (fabs(si_dot) < 5)//过小限制
   //   si_dot = 0;
 
   return si_dot;
@@ -142,12 +170,11 @@ double path_track(Point2d now, Point2d start, Point2d end,float gyro) {
 
 void *startMotiCtrlByAuto(void *args) {
 
-  char cmd[CMD_SIZE] = {0xCC, 0xCC, 0x01, 0x00, 0x00, 0x99};
   _GatewayInfo gwInfo;
   _UwbData uwb_now;
 
-  Point2d start = {4, 0};
-  Point2d end = {4, 5};
+  Point2d start = {3, 0};
+  Point2d end = {3, 20};
   Point2d now = start;
 
   float angle = 0;
@@ -155,23 +182,28 @@ void *startMotiCtrlByAuto(void *args) {
 
   float gyro_init,gyro_now;
 
+  kf_init();//KF初始化
+
   while (1) {
     pthread_mutex_lock(&(g_gtwy_info_mutex));
     gwInfo = g_gateway_info;
     pthread_mutex_unlock(&(g_gtwy_info_mutex));
 
+    pthread_mutex_lock(&(g_uwb_mutex));
     uwb_now = filter_debounce(g_uwb_loc);
-    gyro_init = parse_gyro(g_rv3399_info);
-    // test
-    // Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
-    // Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
-    // save_uwb_data(g_uwb_loc,"UwbDataRaw.csv",sizeof("UwbDataRaw.csv"));
-    // save_uwb_data(uwb_now,"UwbData.csv",sizeof("UwbDataK.csv"));
-    label_cam_send_start(5, 63);
-    Log(DEBUG, "symbol=%d,theta_gyro=%d,theta_cam=%d", g_rv3399_info.symbol,g_rv3399_info.theta_gyro, g_rv3399_info.theta_cam);
-    Log(DEBUG, "theta_gyro=%d", parse_gyro(g_rv3399_info));
-    label_cam_send_end();
+    pthread_mutex_unlock(&(g_uwb_mutex));
 
+    gyro_init = parse_gyro(g_rv3399_info);
+
+    // test
+    Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
+    Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
+    save_uwb_data(g_uwb_loc,"UwbDataRaw.csv",sizeof("UwbDataRaw.csv"));
+    save_uwb_data(uwb_now,"UwbData.csv",sizeof("UwbDataK.csv"));
+    // label_cam_send_start(5, 63);
+    // Log(DEBUG, "symbol=%d,theta_gyro=%d,theta_cam=%d", g_rv3399_info.symbol,g_rv3399_info.theta_gyro, g_rv3399_info.theta_cam);
+    // Log(DEBUG, "theta_gyro=%d", parse_gyro(g_rv3399_info));
+    // label_cam_send_end();
     // test end
 
     if (g_a_suspend) // Gpd开启自动模式
@@ -183,7 +215,7 @@ void *startMotiCtrlByAuto(void *args) {
 
         // path_plan();
         gyro_now = parse_gyro(g_rv3399_info);
-        angle = path_track(now, start, end,calc_gyro(gyro_init,gyro_now));
+        angle = path_track(now, start, end);
         gyro_init = gyro_now;
         Log(DEBUG, "calc_angle=%.2f", angle);
 
@@ -192,7 +224,7 @@ void *startMotiCtrlByAuto(void *args) {
         send_control_cmd(0, 0);         //发送控制命令
       }
     }
-    usleep(100000); // 100ms
+    usleep(50000); // 50ms
   }
   return NULL;
 }

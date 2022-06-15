@@ -6,7 +6,7 @@ import numpy as np
 if __name__ == "__main__":
     #读取csv数据
     readData = pd.read_csv("UwbData.csv",header=None)
-    #print(readDataRaw)
+    #print(readData)
 
     #获取readData中的第1列，并将此转换为list
     data_x = readData.iloc[:,0].tolist()

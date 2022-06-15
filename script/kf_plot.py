@@ -3,53 +3,57 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import math
+import sys
 
-lastTimePredVal = 5  # 上次估计值
-lastTimePredCovVal = 0.02  # 上次估计协方差
-lastTimeRealCovVal = 0.02  # 上次实际协方差
-kg = 0.4 #卡尔曼增益
+Q = 1e-6       #预测(过程)噪声方差
+R = 0.002   #测量(观测)噪声方差 取正态分布的(3σ)^2作为r的初始化值
+Kg = 0
+lastP = 1   #lastP相当于上一次的值,初始值可以为1,不可以为0
+x_hat = 0
+nowP = 0
 
 # val: 本次测量值
-def kalman(val):
+def kalman(input):
     #python中如果若想在函数内部对函数外的变量进行操作，就需要在函数内部声明其为global。
-    global lastTimePredVal  # 上次估计值
-    global lastTimePredCovVal  # 上次估计协方差
-    global lastTimeRealCovVal  # 上次实际协方差
-    global kg
+    global Q
+    global R
+    global Kg
+    global lastP
+    global x_hat
+    global nowP
 
-    currRealVal = val  # 本次实际值
-    currPredCovVal = lastTimePredCovVal  # 本次估计协方差值
-    currRealCovVal = lastTimeRealCovVal  # 本次实际协方差值
+    x_t = x_hat              #当前先验预测值 = 上一次最优值
+    nowP = lastP + Q         #本次的协方差矩阵
+    Kg = nowP/(nowP + R)     #卡尔曼增益系数计算
+    output = x_t + Kg * (input - x_t)  #当前最优值
+    x_hat = output                     #更新最优值
+    lastP = (1 - Kg) * nowP            #更新协方差矩阵
 
-    # 计算本次估计值，并更新保留上次预测值的变量
-    currPredVal = lastTimePredVal + kg * (currRealVal - lastTimePredVal)
-    lastTimePredVal = currPredVal
-
-    #计算卡尔曼增益
-    kg = math.sqrt(math.pow(lastTimePredCovVal, 2) / (math.pow(lastTimePredCovVal, 2) + math.pow(lastTimeRealCovVal, 2)+ 1e-10) )
-
-    # 计算下次估计和实际协方差
-    lastTimePredCovVal = math.sqrt(1.0 - kg) * currPredCovVal
-    lastTimeRealCovVal = math.sqrt(1.0 - kg) * currRealCovVal
-
-    # 返回本次的估计值,也就是滤波输出值
-    return currPredVal
+    return output
 
 if __name__ == "__main__":
     #读取csv数据
-    readData = pd.read_csv("UwbData.csv",header=None)
-    readDataRaw = pd.read_csv("UwbDataRaw.csv",header=None)
+
+    if len(sys.argv) == 2 :
+        filename_raw = str(sys.argv[0])
+        filename = str(sys.argv[1])
+    else :
+        filename_raw = "UwbDataRaw.csv"
+        filename = "UwbData.csv"
+
+    readDataRaw = pd.read_csv(filename_raw,header=None)
+    readData = pd.read_csv(filename,header=None)
     #print(readDataRaw)
 
     #获取readData中的第1列，并将此转换为list
-    # data_x = readData.iloc[500:2500,0].tolist()
-    # data_y = readData.iloc[:,1].tolist()
-    # timeData = list(range(1,len(data_x)+1))       #产生横轴坐标
-    #print(data_x)
+    data_x_raw = readDataRaw.iloc[:,0].tolist()
+    data_y_raw = readDataRaw.iloc[:,1].tolist()
+    timeData = list(range(1,len(data_x_raw)+1))     #产生横轴坐标
 
-    data_x_raw = readData.iloc[200:2600,0].tolist()
-    data_y_raw = readData.iloc[:,1].tolist()
-    timeData2 = list(range(1,len(data_x_raw)+1))       #产生横轴坐标
+    data_x = readData.iloc[:,0].tolist()
+    data_y = readData.iloc[:,1].tolist()
+    timeData2 = list(range(1,len(data_x)+1))        #产生横轴坐标
+    #print(data_x)
 
     # 卡尔曼滤波
     predData = []
@@ -59,10 +63,20 @@ if __name__ == "__main__":
     # print(predData)
 
     #画散点图
-    plt.plot(timeData2, data_x_raw,'r')
-    plt.plot(timeData2, predData,'b')
+    plt.plot(timeData, data_x_raw,'r')  #原始数据
+    #plt.plot(timeData, predData,'b')    #该程序KF 参数相同
+    plt.plot(timeData2,data_x,'g')      #KF结果
 
     plt.title("UwbData")               #设置标题
-    plt.xlabel("Times")                 #横轴名称
-    plt.ylabel("Data")                    #纵轴名称
-    plt.show()                               #画图
+    plt.xlabel("Times")                #横轴名称
+    plt.ylabel("Data_X")                 #纵轴名称
+    plt.show()                         #画图
+
+    #画散点图 y轴
+    plt.plot(timeData, data_y_raw,'r')  #原始数据
+    plt.plot(timeData2,data_y,'g')      #KF结果
+
+    plt.title("UwbData")               #设置标题
+    plt.xlabel("Times")                #横轴名称
+    plt.ylabel("Data_Y")                 #纵轴名称
+    plt.show()                         #画图
