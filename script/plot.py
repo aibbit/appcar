@@ -1,11 +1,16 @@
 #读取csv并作图
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
+import sys
 
 if __name__ == "__main__":
+
+    filename = "UwbData.csv"
+    if len(sys.argv) > 1 :
+        filename = str(sys.argv[1])
+
     #读取csv数据
-    readData = pd.read_csv("UwbData.csv",header=None)
+    readData = pd.read_csv(filename,header=None)
     #print(readData)
 
     #获取readData中的第1列，并将此转换为list
@@ -15,7 +20,10 @@ if __name__ == "__main__":
     #print(data_x)
 
     #画散点图
+    #plt.plot(data_x, data_y,'r')
     plt.plot(timeData, data_x,'r')
+    plt.plot(timeData, data_y,'b')
+
     plt.title("UwbData")#设置标题
     plt.xlabel("Times")#横轴名称
     plt.ylabel("Data")#纵轴名称

@@ -1,9 +1,6 @@
 #读取csv并作图
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
-import math
-import sys
 
 Q = 1e-6       #预测(过程)噪声方差
 R = 0.002   #测量(观测)噪声方差 取正态分布的(3σ)^2作为r的初始化值
@@ -34,12 +31,8 @@ def kalman(input):
 if __name__ == "__main__":
     #读取csv数据
 
-    if len(sys.argv) == 2 :
-        filename_raw = str(sys.argv[0])
-        filename = str(sys.argv[1])
-    else :
-        filename_raw = "UwbDataRaw.csv"
-        filename = "UwbData.csv"
+    filename_raw = "UwbDataRaw.csv"
+    filename = "UwbData.csv"
 
     readDataRaw = pd.read_csv(filename_raw,header=None)
     readData = pd.read_csv(filename,header=None)
@@ -64,8 +57,8 @@ if __name__ == "__main__":
 
     #画散点图
     plt.plot(timeData, data_x_raw,'r')  #原始数据
-    #plt.plot(timeData, predData,'b')    #该程序KF 参数相同
-    plt.plot(timeData2,data_x,'g')      #KF结果
+    #plt.plot(timeData, predData,'g')    #该程序KF 参数相同
+    plt.plot(timeData2,data_x,'b')      #KF结果
 
     plt.title("UwbData")               #设置标题
     plt.xlabel("Times")                #横轴名称
@@ -74,7 +67,7 @@ if __name__ == "__main__":
 
     #画散点图 y轴
     plt.plot(timeData, data_y_raw,'r')  #原始数据
-    plt.plot(timeData2,data_y,'g')      #KF结果
+    plt.plot(timeData2,data_y,'b')      #KF结果
 
     plt.title("UwbData")               #设置标题
     plt.xlabel("Times")                #横轴名称
