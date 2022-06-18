@@ -227,8 +227,8 @@ void *startMotiCtrlByAuto(void *args) {
     // test
     Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
     Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
-    save_uwb_data(g_uwb_loc,"UwbDataRaw.csv",sizeof("UwbDataRaw.csv"));
-    save_uwb_data(uwb_now,"UwbData.csv",sizeof("UwbDataK.csv"));
+    save_uwb_data(g_uwb_loc,"/userdata/media/test/appcar/UwbDataRaw.csv",sizeof("/userdata/media/test/appcar/UwbDataRaw.csv"));
+    save_uwb_data(uwb_now,"/userdata/media/test/appcar/UwbData.csv",sizeof("/userdata/media/test/appcar/UwbDataK.csv"));
     // label_cam_send_start(5, 63);
     // Log(DEBUG, "symbol=%d,theta_gyro=%d,theta_cam=%d", g_rv3399_info.symbol,g_rv3399_info.theta_gyro, g_rv3399_info.theta_cam);
     // Log(DEBUG, "theta_gyro=%d", parse_gyro(g_rv3399_info));
@@ -245,13 +245,15 @@ void *startMotiCtrlByAuto(void *args) {
         // path_plan();
         gyro_now = parse_gyro(g_rv3399_info);
         angle = path_track(now, start, end);
-        gyro_init = gyro_now;
+
         Log(DEBUG, "calc_angle=%.2f", angle);
 
         send_control_cmd(angle, speed); //发送控制命令
       } else {                          //到达终点 停车
         send_control_cmd(0, 0);         //发送控制命令
       }
+
+        gyro_init = gyro_now;
     }
     usleep(50000); // 50ms
   }

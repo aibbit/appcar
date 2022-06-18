@@ -221,7 +221,7 @@ int startLocalNetInit() {
   // create one socket for tcp
   g_socketListen = socket(AF_INET, SOCK_STREAM, 0);
   if (g_socketListen < 0) {
-    Log(INFO, "Create TCP socket fail!");
+    Log(ERROR, "Create TCP socket fail!");
     exit(-1);
   } else {
     Log(INFO, "Create TCP socket ok!");

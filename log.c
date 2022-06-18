@@ -14,6 +14,10 @@ Log(DEBUG, "This is debug info\n");
 
 #include "log.h"
 
+#ifndef LOG_FILE_PATH
+#define LOG_FILE_PATH "/userdata/media/test/appcar/CarLog.log"
+#endif
+
 #ifndef LOGLEVEL
 #define LOGLEVEL DEBUG
 #endif
@@ -70,7 +74,7 @@ void save_log(char *buf) {
   char file_name[256] = {0};
   char time[32] = {0};
 
-  sprintf(file_name, "CarLog.log");
+  sprintf(file_name, LOG_FILE_PATH);
   get_timestamp(time);
 
   if ((fp = fopen(file_name, "a+")) != NULL) {
