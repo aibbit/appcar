@@ -34,24 +34,45 @@ void kf_init(void){
   Kalman_Init(&KF_Y,1e-6,0.002);
 }
 
+//对UWB的X Y坐标分别使用初始化的KF进行滤波
+//除初始值0外 当x y同时为0时说明未找到uwb数据 维持上次的uwb数据
+//当10次全为0后 输出0 并打印WARN日志
 _UwbData filter_debounce(_UwbData now_uwb) {
   _UwbData data;
 
-  data.x = Kalman_Filter(&KF_X, now_uwb.x);
-  data.y = Kalman_Filter(&KF_Y, now_uwb.y);
+  static _UwbData last_data = {0};
+  static int count = 0;//纪录数据为0次数
+
+  if(now_uwb.x != 0 && now_uwb.y != 0){
+    data.x = Kalman_Filter(&KF_X, now_uwb.x);
+    data.y = Kalman_Filter(&KF_Y, now_uwb.y);
+    count = 0;
+  }else{
+    data.x = last_data.x;
+    data.y = last_data.y;
+    count ++;
+  }
+
+  if(count > 10){
+    data.x = 0;
+    data.y = 0;
+    Log(WARN,"%d times the uwb data is zero",count);
+  }
+
+  last_data = data;
 
   return data;
 }
 
 //保存uwb数据到文件
 //测试滤波器
-void save_uwb_data(_UwbData data1, char *filename, int namesize) {
+void save_uwb_data(_UwbData data, char *filename, int namesize) {
   FILE *fp = NULL;
   char file_name[128] = {0};
-  char buf[1024] = {0};
+  char buf[64] = {0};
 
   memcpy(file_name, filename, namesize);
-  sprintf(buf, "%.3f,%.3f\n", data1.x, data1.y);
+  sprintf(buf, "%.3f,%.3f\n", data.x, data.y);
 
   if ((fp = fopen(file_name, "a+")) != NULL) {
     fprintf(fp, "%s", buf);
@@ -94,7 +115,7 @@ int calc_gyro(int init, int now) {
 
   if (theta <= -180) {
     theta += 360;
-  } else if (theta >= -180) {
+  } else if (theta >= 180) {
     theta -= 360;
   } else {
     theta += 0;
@@ -158,12 +179,20 @@ double path_track(Point2d now, Point2d start, Point2d end) {
   else
     d = -point_to_line(&now, &start, &end); // right
 
-  float si_dot = 30 * d * sign(tmp);
 
-  if (fabs(si_dot) > 30) //过大限制
-    si_dot = 30;
-  // if (fabs(si_dot) < 5)//过小限制
-  //   si_dot = 0;
+  //目标直线+-5cm内为死区，无偏移动作
+  if(fabs(d) < 0.05)
+    d = 0;
+
+  //根据当前点到起点，终点确立的直线距离 确立后轮转向角
+  //p控制系数20
+  float si_dot = 20 * d;
+
+  //过大限制
+  if (si_dot > 20)
+    si_dot = 20;
+  if (si_dot < -20)
+    si_dot = -20;
 
   return si_dot;
 }
