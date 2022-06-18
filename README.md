@@ -18,8 +18,8 @@ startMotiCtrlByAuto.c  自动控制线程
 
 log.c  日志系统
 
-kalman_filter.c  卡尔曼滤波器
+filter.c  卡尔曼滤波器
 
+math_calc.c  数学计算相关函数
 
-
-utils.c 校验等
+utils.c 校验函数
