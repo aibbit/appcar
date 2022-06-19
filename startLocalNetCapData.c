@@ -1,12 +1,11 @@
-#include <arpa/inet.h>
-#include <pthread.h>
-#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
-
+#include <arpa/inet.h>
+#include <pthread.h>
 
 #include "log.h"
 #include "startLocalNetCapData.h"
@@ -33,9 +32,9 @@ _TestBinCamCache g_BinCam_tst_data = {0};
 
 // client
 #define GATEWAY_IP_ADDR "192.168.1.30"
-#define BINCAM_IP_ADDR "192.168.1.34"
-#define IMGLOC_IP_ADDR "192.168.1.31"
-#define RV3399_IP_ADDR "192.168.1.32"
+#define BINCAM_IP_ADDR  "192.168.1.34"
+#define IMGLOC_IP_ADDR  "192.168.1.31"
+#define RV3399_IP_ADDR  "192.168.1.20"
 
 void *thdAcceptHandler(void *socketListen);
 void *thdRcvGatewayHandler(void *socketInfo);

@@ -225,13 +225,13 @@ void *startMotiCtrlByAuto(void *args) {
     gyro_init = parse_gyro(g_rv3399_info);
 
     // test
-    Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
-    Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
-    save_uwb_data(g_uwb_loc,"/userdata/media/test/appcar/UwbDataRaw.csv",sizeof("/userdata/media/test/appcar/UwbDataRaw.csv"));
-    save_uwb_data(uwb_now,"/userdata/media/test/appcar/UwbData.csv",sizeof("/userdata/media/test/appcar/UwbDataK.csv"));
+    // Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
+    // Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
+    // save_uwb_data(g_uwb_loc,"/userdata/media/test/appcar/UwbDataRaw.csv",sizeof("/userdata/media/test/appcar/UwbDataRaw.csv"));
+    // save_uwb_data(uwb_now,"/userdata/media/test/appcar/UwbData.csv",sizeof("/userdata/media/test/appcar/UwbDataK.csv"));
     // label_cam_send_start(5, 63);
-    // Log(DEBUG, "symbol=%d,theta_gyro=%d,theta_cam=%d", g_rv3399_info.symbol,g_rv3399_info.theta_gyro, g_rv3399_info.theta_cam);
-    // Log(DEBUG, "theta_gyro=%d", parse_gyro(g_rv3399_info));
+    Log(DEBUG, "symbol=%d,theta_gyro=%d,theta_cam=%d", g_rv3399_info.symbol,g_rv3399_info.theta_gyro, g_rv3399_info.theta_cam);
+    Log(DEBUG, "theta_gyro=%d", parse_gyro(g_rv3399_info));
     // label_cam_send_end();
     // test end
 
