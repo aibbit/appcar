@@ -33,11 +33,6 @@ typedef struct GatewayInfo
     uint8_t yawL;
 } _GatewayInfo;
 
-typedef struct IMGLOCInfo
-{
-    uint8_t head[2];
-    uint8_t theta;
-} _IMGLOCInfo;
 
 typedef struct BinCamInfo
 {
@@ -110,16 +105,6 @@ typedef struct testBinCamCache
     uint8_t used;
     pthread_mutex_t mutex;
 } _TestBinCamCache;
-
-
-typedef struct testIMGLOCCache
-{
-    int len[2];
-    _IMGLOCInfo *cache[2];
-    uint8_t used;
-    pthread_mutex_t mutex;
-} _TestIMGLOCCache;
-
 
 typedef struct testGateWayCache
 {

@@ -1,11 +1,11 @@
+#include <arpa/inet.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <pthread.h>
 
 #include "log.h"
 #include "startLocalNetCapData.h"
@@ -32,23 +32,21 @@ _TestBinCamCache g_BinCam_tst_data = {0};
 
 // client
 #define GATEWAY_IP_ADDR "192.168.1.30"
-#define BINCAM_IP_ADDR  "192.168.1.34"
-#define IMGLOC_IP_ADDR  "192.168.1.31"
-#define RV3399_IP_ADDR  "192.168.1.20"
+#define RV3399_IP_ADDR "192.168.1.20"
+#define BINCAM_IP_ADDR "192.168.1.34"
 
 void *thdAcceptHandler(void *socketListen);
 void *thdRcvGatewayHandler(void *socketInfo);
 void *thdRcvBinCamHandler(void *socketInfo);
-void *thdRcvImgLocHandler(void *socketInfo);
 void *thdRcvRV3399Handler(void *socketInfo);
 
 int checkThrIsKill(pthread_t thd);
 
-// clinet socket list
+// 客户端数组
 _MySocketInfo arrConSocket[10];
 int conClientCount = 0;
 
-// client thread list
+// 接受客户端线程列表
 pthread_t arrThrReceiveClient[10];
 int thrReceiveClientCount = 0;
 
@@ -58,14 +56,11 @@ pthread_t g_thdAccept = 0;
 // client socket
 _MySocketInfo g_gatewaySocket;
 _MySocketInfo g_bincamSocket;
-_MySocketInfo g_imglocSocket;
 _MySocketInfo g_rv3399Socket;
 
 // client data source
 _GatewayInfo g_gateway_info;
 pthread_mutex_t g_gtwy_info_mutex;
-_IMGLOCInfo g_image_info;
-pthread_mutex_t g_image_info_mutex;
 _BinCamInfo g_bincam_info;
 pthread_mutex_t g_bincam_info_mutex;
 
@@ -236,7 +231,7 @@ int startLocalNetInit() {
   server_addr.sin_port = htons(SERVER_PORT);
   if (bind(g_socketListen, (struct sockaddr *)&server_addr,
            sizeof(struct sockaddr)) != 0) {
-    perror("Bind ip addr and port fail!");
+    // perror("Bind ip addr and port fail!");
     Log(ERROR, "Bind ip addr and port fail!");
     exit(-1);
   } else {
@@ -244,7 +239,7 @@ int startLocalNetInit() {
   }
   // listening to the port
   if (listen(g_socketListen, 10) != 0) {
-    Log(WARN, "Keep listen fail!");
+    Log(ERROR, "Keep listen fail!");
     exit(-1);
   } else {
     Log(INFO, "Keep listen ok!");
@@ -257,7 +252,20 @@ int startLocalNetInit() {
 
 void *thdAcceptHandler(void *g_socketListen) {
   while (1) {
-    if (thrReceiveClientCount < 4) {
+
+    //判断线程存活多少
+    if (thrReceiveClientCount > 0) {
+      for (int i = 0; i < thrReceiveClientCount; i++) {
+        if (checkThrIsKill(arrThrReceiveClient[i]) == 1) {
+          Log(DEBUG, "A thread killed");
+          thrReceiveClientCount--;
+        }
+      }
+      //当前有接受数据线程多少个
+      Log(INFO, "receiving data threads:%d", thrReceiveClientCount);
+    }
+
+    if (thrReceiveClientCount < 10) {
       int sockaddr_in_size = sizeof(struct sockaddr_in);
       struct sockaddr_in client_addr;
       int _g_socketListen = *((int *)g_socketListen);
@@ -283,14 +291,11 @@ void *thdAcceptHandler(void *g_socketListen) {
       } else if (strcmp(socketInfo.ipaddr, BINCAM_IP_ADDR) == 0) {
         g_bincamSocket = socketInfo;
         pthread_create(&thrReceive, NULL, thdRcvBinCamHandler, &g_bincamSocket);
-      } else if (strcmp(socketInfo.ipaddr, IMGLOC_IP_ADDR) == 0) {
-        g_imglocSocket = socketInfo;
-        pthread_create(&thrReceive, NULL, thdRcvBinCamHandler, &g_imglocSocket);
       } else if (strcmp(socketInfo.ipaddr, RV3399_IP_ADDR) == 0) {
         g_rv3399Socket = socketInfo;
         pthread_create(&thrReceive, NULL, thdRcvRV3399Handler, &g_rv3399Socket);
       } else {
-        Log(ERROR, "Err: %s is not in field.", socketInfo.ipaddr);
+        Log(WARN, "%s is not in field.", socketInfo.ipaddr);
         close(socketCon);
         continue;
       }
@@ -301,9 +306,8 @@ void *thdAcceptHandler(void *g_socketListen) {
       arrThrReceiveClient[thrReceiveClientCount] = thrReceive;
       thrReceiveClientCount++;
     } else {
-      Log(WARN, "Received count(%d) is full.", thrReceiveClientCount);
+      Log(ERROR, "Received count(%d) is full.", thrReceiveClientCount);
     }
-
     sleep(1);
   }
 
@@ -485,74 +489,11 @@ void ParseDataForBinCam(char chr) {
       pthread_mutex_lock(&(g_bincam_info_mutex));
       g_bincam_info = tmpData;
       pthread_mutex_unlock(&(g_bincam_info_mutex));
-#if USE_TEST_CACHE
-      pthread_mutex_lock(&(g_image_tst_data.mutex));
-      uint8_t n = g_BinCam_tst_data.used;
-      pthread_mutex_unlock(&(g_BinCam_tst_data.mutex));
-      int len = g_BinCam_tst_data.len[n];
-      if ((g_BinCam_tst_data.cache[n] != NULL) &&
-          (len < TEST_SAVE_MIN_LEN)) // 8MB
-      {
-        g_BinCam_tst_data.cache[n][len] = tmpData;
-        g_BinCam_tst_data.len[n]++;
-      }
-#endif
+
       return;
     }
   }
   BinCam_chrCnt = 0;
-}
-
-// pending
-void ParseDataForImgLoc(char chr) {
-  static char IMG_chrBuf[100];
-  static unsigned char IMG_chrCnt = 0;
-  unsigned char sData[2];
-  _IMGLOCInfo tmpData;
-
-  IMG_chrBuf[IMG_chrCnt++] = chr;
-  if (IMG_chrCnt < 4)
-    return;
-
-  if ((IMG_chrBuf[0] != 0x9A) || (IMG_chrBuf[1] != 0x9B)) {
-    Log(ERROR, "Error:%x %x", IMG_chrBuf[0], IMG_chrBuf[1]);
-    memcpy(&IMG_chrBuf[0], &IMG_chrBuf[1], 3);
-    IMG_chrCnt--;
-    return;
-  }
-  memcpy(&sData[0], &IMG_chrBuf[2], 2);
-
-  if ((IMG_chrBuf[0] == 0x9A) && (IMG_chrBuf[1] == 0x9B)) {
-    tmpData.theta = sData[0];
-
-    int sum = 0x9A + 0x9B;
-
-    for (int i = 0; i < 1; i++) {
-      sum += (int)sData[i];
-    }
-    if ((unsigned char)(sum & 0xFF) == sData[1]) {
-      IMG_chrCnt = 0;
-      // printf("\n----------check SUM ok!----------\n");
-      //  give the data to global data
-      pthread_mutex_lock(&(g_image_info_mutex));
-      g_image_info = tmpData;
-      pthread_mutex_unlock(&(g_image_info_mutex));
-#if USE_TEST_CACHE
-      pthread_mutex_lock(&(g_image_tst_data.mutex));
-      uint8_t n = g_image_tst_data.used;
-      pthread_mutex_unlock(&(g_image_tst_data.mutex));
-      int len = g_image_tst_data.len[n];
-      if ((g_image_tst_data.cache[n] != NULL) &&
-          (len < TEST_SAVE_MIN_LEN)) // 8MB
-      {
-        g_image_tst_data.cache[n][len] = tmpData;
-        g_image_tst_data.len[n]++;
-      }
-#endif
-      return;
-    }
-  }
-  IMG_chrCnt = 0;
 }
 
 void *thdRcvGatewayHandler(void *socketInfo) {
@@ -631,15 +572,6 @@ void *thdRcvBinCamHandler(void *socketInfo) {
   char buffer[1024];
   int buffer_length;
 
-#if USE_TEST_CACHE
-  for (int i = 0; i < 2; i++) {
-    g_BinCam_tst_data.cache[i] =
-        (_BinCamInfo *)malloc(TEST_CACHE_MAX_LEN * sizeof(_BinCamInfo));
-    memset(g_BinCam_tst_data.cache[i], 0,
-           TEST_CACHE_MAX_LEN * sizeof(_BinCamInfo));
-  }
-#endif
-
   _MySocketInfo _socketInfo = *((_MySocketInfo *)socketInfo);
   while (1) {
     bzero(&buffer, sizeof(buffer));
@@ -656,16 +588,10 @@ void *thdRcvBinCamHandler(void *socketInfo) {
     }
     printf("%s:%d:len=%d: ", _socketInfo.ipaddr, _socketInfo.port,
            buffer_length);
-#ifdef USE_TEST
-    for (int i = 0; i < buffer_length; i++) {
-      // if (buffer[i] != 0)
-      { printf("%d\t", buffer[i]); }
-    }
-#endif
     printf("\n");
 
     ////////////////////////////////////////////////////////////////////////////cw
-    ///begin
+    /// begin
 
     // if (buffer_length < 20)
     //     continue;
@@ -674,85 +600,11 @@ void *thdRcvBinCamHandler(void *socketInfo) {
       ParseDataForBinCam(buffer[i]);
     }
     ///////////////////////////////////////////////////////////////////////////cw
-    ///end
-
-#ifdef USE_FEEDBACK
-    {
-      char userStr[10] = {0x8A, 0x8B, 0x68, 0x65, 0x61, 0x72, 0x74, 0x8E};
-      int sendMsg_len = write(_socketInfo.socketCon, userStr, 10);
-      if (sendMsg_len > 0) {
-        printf("\nTo %s:%d, send ok.\n", _socketInfo.ipaddr, _socketInfo.port);
-      } else {
-        printf("\nTo %s:%d, send fail.\n", _socketInfo.ipaddr,
-               _socketInfo.port);
-      }
-    }
-#endif
+    /// end
     sleep(0.2);
   }
   close(_socketInfo.socketCon);
   printf("%s, rcvBinCam exit.", _socketInfo.ipaddr);
-  memset(socketInfo, 0, sizeof(_MySocketInfo));
-  return NULL;
-}
-
-void *thdRcvImgLocHandler(void *socketInfo) {
-  char buffer[1024];
-  int buffer_length;
-
-#if USE_TEST_CACHE
-  for (int i = 0; i < 2; i++) {
-    g_image_tst_data.cache[i] =
-        (_IMGLOCInfo *)malloc(TEST_CACHE_MAX_LEN * sizeof(_IMGLOCInfo));
-    memset(g_image_tst_data.cache[i], 0,
-           TEST_CACHE_MAX_LEN * sizeof(_IMGLOCInfo));
-  }
-#endif
-  _MySocketInfo _socketInfo = *((_MySocketInfo *)socketInfo);
-  while (1) {
-    bzero(&buffer, sizeof(buffer));
-
-    buffer_length = read(_socketInfo.socketCon, buffer, 1024);
-    if (buffer_length == 0) {
-      printf("%s:%d client closed.\n", _socketInfo.ipaddr, _socketInfo.port);
-      conClientCount--;
-      break;
-    } else if (buffer_length < 0) {
-      printf("Receive data from client fail.\n");
-      conClientCount--;
-      break;
-    }
-    printf("%s:%d:len=%d: \n", _socketInfo.ipaddr, _socketInfo.port,
-           buffer_length);
-#ifdef USE_TEST
-    for (int i = 0; i < buffer_length; i++) {
-      // if (buffer[i] != 0)
-      { printf("%d\t", buffer[i]); }
-    }
-#endif
-
-    if (buffer_length < 4) //////cw
-      continue;
-    for (int i = 0; i < buffer_length; i++) {
-      ParseDataForImgLoc(buffer[i]);
-    }
-
-#ifdef USE_FEEDBACK
-    {
-      char userStr[10] = {0x8A, 0x8B, 0x68, 0x65, 0x61, 0x72, 0x74, 0x8E};
-      int sendMsg_len = write(_socketInfo.socketCon, userStr, 10);
-      if (sendMsg_len > 0) {
-        printf("\nTo %s:%d, send ok.\n", _socketInfo.ipaddr, _socketInfo.port);
-      } else {
-        printf("\nTo %s:%d, send fail.\n", _socketInfo.ipaddr,
-               _socketInfo.port);
-      }
-    }
-#endif
-    sleep(0.2);
-  }
-  close(_socketInfo.socketCon);
-  Log(ERROR, "%s, rcvImgLoc fail.", _socketInfo.ipaddr);
   memset(socketInfo, 0, sizeof(_MySocketInfo));
   return NULL;
 }
@@ -819,7 +671,7 @@ void *thdRcvRV3399Handler(void *socketInfo) {
       conClientCount--;
       break;
     }
-    Log(DEBUG, "%s:%d:len=%d: ", _socketInfo.ipaddr, _socketInfo.port,
+    Log(DEBUG, "%s:%d:len=%d", _socketInfo.ipaddr, _socketInfo.port,
         buffer_length);
 
     if (buffer_length < 6)

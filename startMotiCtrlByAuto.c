@@ -28,7 +28,7 @@ extern int g_a_suspend; //手柄开启自动模式flag
 Kalman_TypeDef KF_X; // UWB_X
 Kalman_TypeDef KF_Y; // UWB_Y
 
-// UWB滤波器使用
+// 滤波器初始化
 void kf_init(void){
   Kalman_Init(&KF_X,1e-6,0.002);
   Kalman_Init(&KF_Y,1e-6,0.002);
@@ -80,6 +80,21 @@ void save_uwb_data(_UwbData data, char *filename, int namesize) {
   }
 }
 
+//保存gyro数据到文件
+void save_gyro_data(int data, char *filename, int namesize) {
+  FILE *fp = NULL;
+  char file_name[128] = {0};
+  char buf[64] = {0};
+
+  memcpy(file_name, filename, namesize);
+  sprintf(buf, "%d\n", data);
+
+  if ((fp = fopen(file_name, "a+")) != NULL) {
+    fprintf(fp, "%s", buf);
+    fclose(fp);
+  }
+}
+
 
 /**
  * @brief 解析3399中陀螺仪数据
@@ -124,46 +139,6 @@ int calc_gyro(int init, int now) {
   return theta;
 }
 
-/**
- * @brief 根据路径点计算偏转角度
- *
- * @param now 当前点
- * @param start 起始点
- * @param end 终点
- * @param gyro 陀螺仪偏角
- * @return double 计算的转角
-**/
-// double path_track(Point2d now, Point2d start, Point2d end,float gyro) {
-
-//   const int v = 10; //速度
-
-//   // To check whether the point is left or right of the desired path
-//   double d = 0;
-//   double tmp = (now.x_ - start.x_) * (end.y_ - start.y_) -
-//                (now.y_ - start.y_) * (end.x_ - start.x_);
-
-//   if (tmp < 0) //点now在start和end确立的直线的左边
-//     d = point_to_line(&now, &start, &end); // left
-//   else
-//     d = -point_to_line(&now, &start, &end); // right
-
-//   double si_p = atan2((end.y_ - start.y_), (end.x_ - start.x_)); // si desired
-
-//   const int db = 2;//限制偏移尺寸?
-//   const int q2 = 1;
-//   double q1 = sqrt(fabs(db / ((db - d) + 1e-10)));
-//   double vd = v * sin(gyro - si_p); // d_dot
-//   double si_dot = -(q1 * d + sqrt(2 * q1 + q2 * q2) * vd);
-
-//   si_dot *= sign(tmp);
-
-//   if (fabs(si_dot) > 30) //过大限制
-//     si_dot = 30;
-//   // if (fabs(si_dot) < 2)//过小限制
-//   //   si_dot = 0;
-
-//   return si_dot;
-// }
 
 double path_track(Point2d now, Point2d start, Point2d end) {
 
@@ -228,11 +203,13 @@ void *startMotiCtrlByAuto(void *args) {
     // Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
     // Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
     // save_uwb_data(g_uwb_loc,"/userdata/media/test/appcar/UwbDataRaw.csv",sizeof("/userdata/media/test/appcar/UwbDataRaw.csv"));
-    // save_uwb_data(uwb_now,"/userdata/media/test/appcar/UwbData.csv",sizeof("/userdata/media/test/appcar/UwbDataK.csv"));
+    // save_uwb_data(uwb_now,"/userdata/media/test/appcar/UwbData.csv",sizeof("/userdata/media/test/appcar/UwbData.csv"));
     // label_cam_send_start(5, 63);
-    Log(DEBUG, "symbol=%d,theta_gyro=%d,theta_cam=%d", g_rv3399_info.symbol,g_rv3399_info.theta_gyro, g_rv3399_info.theta_cam);
+    // Log(DEBUG, "symbol=%d,theta_cam=%d", g_rv3399_info.symbol, g_rv3399_info.theta_cam);
     Log(DEBUG, "theta_gyro=%d", parse_gyro(g_rv3399_info));
+    save_gyro_data(parse_gyro(g_rv3399_info),"/userdata/media/test/appcar/gyro.csv",sizeof("/userdata/media/test/appcar/gyro.csv"));
     // label_cam_send_end();
+
     // test end
 
     if (g_a_suspend) // Gpd开启自动模式

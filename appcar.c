@@ -23,19 +23,19 @@ int main(int argc, char *argv[])
 	err = pthread_create(&car_pwr_monitor_tid, NULL, startMonitorPower, NULL);
 	if (0 != err)
 	{
-		Log(ERROR,"can't create startMonitorPower thread!\n");
+		Log(ERROR,"can't create startMonitorPower thread!");
 		exit(1);
 	}
 	err = pthread_create(&car_manual_tid, NULL, startMotiCtrlByManual, NULL);
 	if (0 != err)
 	{
-		Log(ERROR,"can't create startMotiCtrlByManual thread!\n");
+		Log(ERROR,"can't create startMotiCtrlByManual thread!");
 		exit(1);
 	}
 	err = pthread_create(&car_auto_tid, NULL, startMotiCtrlByAuto, NULL);
 	if (0 != err)
 	{
-		Log(ERROR,"can't create startMotiCtrlByAuto thread!\n");
+		Log(ERROR,"can't create startMotiCtrlByAuto thread!");
 		exit(1);
 	}
 
