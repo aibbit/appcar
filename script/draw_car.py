@@ -42,31 +42,26 @@ def draw_car(x, y, yaw, steer, color='black'):
     rlWheel = wheel.copy()
     rrWheel = wheel.copy()
     frWheel = wheel.copy()
-    flWheel = wheel.copy()
 
+    #车身旋转矩阵？
     Rot1 = np.array([[math.cos(yaw), -math.sin(yaw)],
                      [math.sin(yaw), math.cos(yaw)]])
-
+    #车轮旋转矩阵？
     Rot2 = np.array([[math.cos(steer), math.sin(steer)],
                      [-math.sin(steer), math.cos(steer)]])
 
     frWheel = np.dot(Rot2, frWheel)
-    flWheel = np.dot(Rot2, flWheel)
 
-    frWheel += np.array([[C.WB], [-C.WD / 2]])
-    flWheel += np.array([[C.WB], [C.WD / 2]])
+    frWheel[0, :] += C.WB
     rrWheel[1, :] -= C.WD / 2
     rlWheel[1, :] += C.WD / 2
 
     frWheel = np.dot(Rot1, frWheel)
-    flWheel = np.dot(Rot1, flWheel)
-
     rrWheel = np.dot(Rot1, rrWheel)
     rlWheel = np.dot(Rot1, rlWheel)
     car = np.dot(Rot1, car)
 
     frWheel += np.array([[x], [y]])
-    flWheel += np.array([[x], [y]])
     rrWheel += np.array([[x], [y]])
     rlWheel += np.array([[x], [y]])
     car += np.array([[x], [y]])
@@ -74,18 +69,12 @@ def draw_car(x, y, yaw, steer, color='black'):
     plt.plot(car[0, :], car[1, :], color)
     plt.plot(frWheel[0, :], frWheel[1, :], color)
     plt.plot(rrWheel[0, :], rrWheel[1, :], color)
-    plt.plot(flWheel[0, :], flWheel[1, :], color)
     plt.plot(rlWheel[0, :], rlWheel[1, :], color)
     Arrow(x, y, yaw, C.WB * 0.6, color)
 
 class C:
 
-    # system config
-    Ld = 2.6  # look ahead distance
-    kf = 0.1  # look forward gain
     dt = 0.1  # T step
-    dist_stop = 0.7  # stop distance
-    dc = 0.0
 
     # vehicle config
     RF = 3.3  # [m] distance from rear to vehicle front end of vehicle
@@ -100,8 +89,19 @@ class C:
 
 if __name__ == "__main__":
 
-    plt.cla()
-    draw_car( 0, 0, 0, PI/6)
-    plt.axis("equal")
+    x = np.linspace(0,5,100)
+    y = 3
+
+    i = 0
+    while i< 100 :
+
+        plt.cla()
+        plt.plot(x[i], y,'r',marker='.',linewidth=4)
+        draw_car(x[i], y, PI + 0, 0)
+        #draw_car( 10, 0, PI/2, 0)
+        plt.axis("equal")
+        plt.pause(0.001)
+
+        i += 1
 
     plt.show()#画图
