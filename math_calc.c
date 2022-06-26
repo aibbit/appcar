@@ -1,11 +1,6 @@
 #include <math.h>
 #include "math_calc.h"
 
-#define SQ(x) ((x)*(x))
-#define PI 3.14159265L
-#define Degree2Rad	0.01745329251994327813L	//角度转弧度
-#define Rad2Degree	57.29577951308237971L		//弧度转角度
-
 //符号函数
 int sign(double x) {
   if (x > 0)
@@ -14,6 +9,18 @@ int sign(double x) {
     return -1;
   else
     return 0;
+}
+
+//浮点数相等
+int nearly_equal(double x1, double x2)
+{
+    return (x1 == x2) || (fabs((x2-x1)/x2) < 0.00001);
+}
+
+//正数四舍五入
+double round(double r)
+{
+    return (r > 0.0) ? floor(r + 0.5) : ceil(r - 0.5);
 }
 
 //求num平方根的倒数
@@ -33,6 +40,10 @@ double q_rsqrt(double num)
     return y;
 }
 
+//计算距离
+double distance ( double x1, double y1, double x2, double y2 ){
+    return sqrt ( ( x2 - x1 ) * ( x2 - x1 ) + ( y2 - y1 ) * ( y2 - y1 ) );
+}
 //计算两点间距离
 double dist(Point2d *point1, Point2d *point2) {
   return sqrt(SQ(point2->x_ - point1->x_)  + SQ(point2->y_ - point1->y_) );
