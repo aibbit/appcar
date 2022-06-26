@@ -1,6 +1,7 @@
 .history
 .vscode
 docs
+__pycache__
 
 *.out
 *.csv
