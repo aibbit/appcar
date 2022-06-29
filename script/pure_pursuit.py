@@ -21,11 +21,15 @@ class VehicleState:
 
     def update(state, a, delta):
 
+        if delta > PI/6:
+            delta = PI/6
+        if delta < -PI/6:
+            delta = -PI/6
+
         state.x = state.x + state.v * math.cos(state.yaw) * dt
         state.y = state.y + state.v * math.sin(state.yaw) * dt
         state.yaw = state.yaw + state.v / L * math.tan(delta) * dt
         state.v = state.v + a * dt
-
         state.steer = delta
         return state
 
