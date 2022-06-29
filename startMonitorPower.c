@@ -8,8 +8,8 @@
 #include "startLocalNetCapData.h"
 
 // client data source
-_GatewayInfo g_gateway_info;
-pthread_mutex_t g_gtwy_info_mutex;
+extern _GatewayInfo g_gateway_info;
+extern pthread_mutex_t g_gtwy_info_mutex;
 
 void *startMonitorPower(void *args)
 {
