@@ -8,4 +8,6 @@ typedef struct comUwbData {
 
 void startComInitForUWB();
 
+_UwbData get_uwb_data(void);
+
 #endif // __START_UWB_CAP_DATA_H__
