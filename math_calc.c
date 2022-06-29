@@ -12,9 +12,9 @@ int sign(double x) {
 }
 
 //浮点数相等
-int nearly_equal(double x1, double x2)
+int is_nearly_equal(double x1, double x2)
 {
-    return (x1 == x2) || (fabs((x2-x1)/x2) < 0.00001);
+    return (fabs((x2-x1) <= 1e-6));
 }
 
 //正数四舍五入

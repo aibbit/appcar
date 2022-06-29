@@ -14,7 +14,8 @@ typedef struct {
 //符号函数
 int sign(double x);
 
-int nearly_equal(double x1, double x2);
+//判断俩个值是否相邻
+int is_nearly_equal(double x1, double x2);
 
 double round(double r);
 
