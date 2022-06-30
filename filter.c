@@ -1,5 +1,9 @@
+#include <stdlib.h>
+#include <math.h>
+
+#include "math_calc.h"
 #include "filter.h"
-#include "stdlib.h"
+
 
 // KF start
 void Kalman_Init(Kalman_TypeDef *KF,double Q,double R) {
@@ -21,3 +25,19 @@ double Kalman_Filter(Kalman_TypeDef *KF, double input) {
   return output;
 }
 // KF end
+
+//a=[0,1]
+double lag_filter(double input,double a){
+
+  static double last_value = 0.0;
+  double tmp = 0.0;
+
+  if(is_nearly_equal(last_value,0.0)){
+    tmp = input;
+  }
+  else{
+    tmp = a * input + (1-a) * last_value;
+  }
+  last_value = input;
+  return tmp;
+}
