@@ -30,17 +30,14 @@ static float exchange_data(char *data) {
 }
 
 //4字节head 4字节x 4字节y
-void ParseDataForUwb(char chr, int count) {
-  uint8_t chrBuf[100];
+void ParseDataForUwb(char chr) {
+  static uint8_t chrBuf[MAX_BUFF];
   static int chrCnt = 0;
   char x[4] = {0};
   char y[4] = {0};
-  //  if(count<1||count>sizeof(chrBuf))
-  // count = sizeof(chrBuf);
 
   chrBuf[chrCnt++] = chr;
   if (chrCnt < UWB_DATA_SIZE)
-    // if (chrCnt < count)
     return;
 
   if ((chrBuf[0] != 0xF0) || (chrBuf[1] != 0xFF) || (chrBuf[2] != 0x79) ||
@@ -82,7 +79,7 @@ void *startComRcvUwbData(void *args) {
       sleep(1);
     } else {
       for (int i = 0; i < sz; i++) {
-        ParseDataForUwb(buffer[i], sz);
+        ParseDataForUwb(buffer[i]);
       }
     }
 
@@ -147,4 +144,20 @@ _UwbData get_uwb_data(void) {
   pthread_mutex_unlock(&(g_uwb_mutex));
 
   return data;
+}
+
+//保存uwb数据到文件
+//测试滤波器
+void save_uwb_data(_UwbData data, char *filename, int namesize) {
+  FILE *fp = NULL;
+  char file_name[128] = {0};
+  char buf[64] = {0};
+
+  memcpy(file_name, filename, namesize);
+  sprintf(buf, "%.3f,%.3f\n", data.x, data.y);
+
+  if ((fp = fopen(file_name, "a+")) != NULL) {
+    fprintf(fp, "%s", buf);
+    fclose(fp);
+  }
 }
