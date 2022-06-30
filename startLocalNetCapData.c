@@ -73,7 +73,7 @@ pthread_mutex_t g_rv3399_info_mutex;
 //精度90/2^7-1度
 static uint8_t angle_cmd(float angle) {
   uint8_t cmd = 0;
-  const float epslon = 1e-6;
+  const double epslon = 1e-6;
 
   if (angle > -1 * epslon && angle < epslon) // angle == 0
     cmd = 0x00;
@@ -89,7 +89,7 @@ static uint8_t angle_cmd(float angle) {
 //精度Vmax/2^7-1
 static uint8_t speed_cmd(float speed) {
   uint8_t cmd = 0;
-  const float epslon = 1e-6;
+  const double epslon = 1e-6;
 
   if (speed > -1 * epslon && speed < epslon) // speed == 0
     cmd = 0x00;
