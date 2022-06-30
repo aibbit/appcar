@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "filter.h"
+#include "frenet.h"
 #include "log.h"
 #include "math_calc.h"
 #include "startGamepadCapData.h"
@@ -15,23 +16,26 @@
 #include "utils.h"
 
 extern pthread_mutex_t g_gtwy_info_mutex;
-extern _GatewayInfo g_gateway_info; // 网关
+extern _GatewayInfo g_gateway_info;  // 网关
 
-extern _RV3399Info g_rv3399_info; // 3399摄像头-陀螺仪
+extern _RV3399Info g_rv3399_info;  // 3399摄像头-陀螺仪
 
 extern pthread_mutex_t g_uwb_mutex;
-extern _UwbData g_uwb_loc; // uwb数据
+extern _UwbData g_uwb_loc;  // uwb数据
 
-extern int g_a_suspend; //手柄开启自动模式flag
+extern int g_a_suspend;  //手柄开启自动模式flag
+
+extern _ComGpdKey g_gpd_key;
+extern pthread_mutex_t g_gpd_mutex;
 
 //滤波器参数
-Kalman_TypeDef KF_X; // UWB_X
-Kalman_TypeDef KF_Y; // UWB_Y
+Kalman_TypeDef KF_X;  // UWB_X
+Kalman_TypeDef KF_Y;  // UWB_Y
 
 // 滤波器初始化
-void kf_init(void){
-  Kalman_Init(&KF_X,1e-6,0.002);
-  Kalman_Init(&KF_Y,1e-6,0.002);
+void kf_init(void) {
+  Kalman_Init(&KF_X, 1e-6, 0.002);
+  Kalman_Init(&KF_Y, 1e-6, 0.002);
 }
 
 //对UWB的X Y坐标分别使用初始化的KF进行滤波
@@ -41,43 +45,27 @@ _UwbData filter_debounce(_UwbData now_uwb) {
   _UwbData data;
 
   static _UwbData last_data = {0};
-  static int count = 0;//纪录数据为0次数
+  static int count = 0;  //纪录数据为0次数
 
-  if(now_uwb.x != 0 && now_uwb.y != 0){
+  if (now_uwb.x != 0 && now_uwb.y != 0) {
     data.x = Kalman_Filter(&KF_X, now_uwb.x);
     data.y = Kalman_Filter(&KF_Y, now_uwb.y);
     count = 0;
-  }else{
+  } else {
     data.x = last_data.x;
     data.y = last_data.y;
-    count ++;
+    count++;
   }
 
-  if(count > 10){
+  if (count > 10) {
     data.x = 0;
     data.y = 0;
-    Log(WARN,"%d times the uwb data is zero",count);
+    Log(WARN, "%d times the uwb data is zero", count);
   }
 
   last_data = data;
 
   return data;
-}
-
-//保存uwb数据到文件
-//测试滤波器
-void save_uwb_data(_UwbData data, char *filename, int namesize) {
-  FILE *fp = NULL;
-  char file_name[128] = {0};
-  char buf[64] = {0};
-
-  memcpy(file_name, filename, namesize);
-  sprintf(buf, "%.3f,%.3f\n", data.x, data.y);
-
-  if ((fp = fopen(file_name, "a+")) != NULL) {
-    fprintf(fp, "%s", buf);
-    fclose(fp);
-  }
 }
 
 //保存gyro数据到文件
@@ -95,7 +83,6 @@ void save_gyro_data(int data, char *filename, int namesize) {
   }
 }
 
-
 /**
  * @brief 解析3399中陀螺仪数据
  *
@@ -103,7 +90,6 @@ void save_gyro_data(int data, char *filename, int namesize) {
  * @return int -180到180的绝对角度
  **/
 int parse_gyro(_RV3399Info g_rv3399_info) {
-
   if (g_rv3399_info.symbol == 0x00 || g_rv3399_info.symbol == 0x01) {
     //陀螺仪为正数
     return (g_rv3399_info.theta_gyro);
@@ -113,18 +99,17 @@ int parse_gyro(_RV3399Info g_rv3399_info) {
   } else {
     Log(WARN, "symbol error");
   }
-   return 0;
+  return 0;
 }
 
 /**
- * @brief 根据前后陀螺仪数值，计算差值，正值->顺时针转过theta
+ * @brief 根据前后陀螺仪数值,计算差值,正值->顺时针转过theta
  *
  * @param init
  * @param now
  * @return int
  **/
 int calc_gyro(int init, int now) {
-
   int theta = 0;
   theta = now - init;
 
@@ -139,54 +124,149 @@ int calc_gyro(int init, int now) {
   return theta;
 }
 
+//根据陀螺仪原地转相应角度
+void turn_angle(int angle) {
+  int gyro_init = parse_gyro(g_rv3399_info);
+  int gyro_now = gyro_init;
+  int error = 0;
+
+  while (1) {
+    gyro_init = gyro_now;
+    gyro_now = parse_gyro(g_rv3399_info);
+    error += calc_gyro(gyro_init, gyro_now);
+
+    send_control_cmd(90, 30);
+
+    if (error >= abs(angle)) break;
+  }
+
+  send_control_cmd(0, 0);
+}
+
+static int gyro_init = 0;   //陀螺仪清零值
+volatile int gyro_now = 0;  //陀螺仪相对值
+static int get_gyro(void) { return calc_gyro(gyro_init, gyro_now); }
+
+//根据起点和终点生成直线地图
+//插值函数简单替代
+//输入start,end,size
+//输出map[]
+void generate_path(const Point2d start, const Point2d end, const int size,
+                   Point2d map[]) {
+  double k = 0;
+  double step = 0;
+  double max_length = 0;
+  if (start.y_ == end.y_) {
+    max_length = end.x_ - start.x_;
+    step = max_length / (size - 1);
+    for (int m = 0; m < size; m++) {
+      map[m].x_ = start.x_ + step * m;
+      map[m].y_ = start.y_;
+    }
+  } else if (start.x_ == end.x_) {
+    max_length = end.y_ - start.y_;
+    step = max_length / (size - 1);
+    for (int m = 0; m < size; m++) {
+      map[m].x_ = start.x_;
+      map[m].y_ = start.y_ + step * m;
+    }
+  } else {
+    k = (end.y_ - start.y_) / (end.x_ - start.x_);
+    printf("k = %f\n, ", k);
+    max_length = end.x_ - start.x_;
+    printf("max_length = %f\n, ", max_length);
+    step = max_length / (size - 1);
+    printf("step = %f\n, ", step);
+
+    for (int m = 0; m < size; m++) {
+      map[m].x_ = start.x_ + step * m;
+      map[m].y_ = k * step * m + start.y_;
+    }
+  }
+}
+
+double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
+  const float Kv = 0.1;  // 前视距离系数
+  const float Kp = 0.8;  // 速度P控制器系数
+  const float Ld0 = 2;   // 预瞄距离的下限值
+  const float L = 1.2;   // 车辆轴距
+
+  // 搜索最临近的路点
+  int ind = 0;
+  ind = ClosestWayPoint(now, map, size);
+
+  // 从该点开始向后搜索，找到与预瞄距离最相近的一个轨迹点
+  float L_steps = 0;  // 参考轨迹上几个点的临近距离
+
+  while (Ld0 > L_steps && (ind + 1) < size) {
+    L_steps +=
+        distance(map[ind].x_, map[ind].y_, map[ind + 1].x_, map[ind + 1].y_);
+    ind += 1;
+  }
+
+  float tx = 0, ty = 0;
+  if (ind < size) {
+    tx = map[ind].x_;
+    ty = map[ind].y_;
+  } else {
+    tx = map[size - 1].x_;
+    ty = map[size - 1].y_;
+    ind = size - 1;
+  }
+
+  double alpha = 0, delta = 0;
+  alpha = atan2(ty - now.y_, tx - now.x_) - get_gyro() * Degree2Rad;
+  delta = atan2(2.0 * L * sin(alpha) / Ld0, 1.0);
+
+  delta *= Rad2Degree;  //转换为角度
+
+  return delta;
+}
 
 double path_track(Point2d now, Point2d start, Point2d end) {
-
-  const int v = 10; //速度
+  const int v = 10;  //速度
 
   // To check whether the point is left or right of the desired path
   double d = 0;
   double tmp = (now.x_ - start.x_) * (end.y_ - start.y_) -
                (now.y_ - start.y_) * (end.x_ - start.x_);
 
-  if (tmp < 0) //点now在start和end确立的直线的左边
-    d = point_to_line(&now, &start, &end); // left
+  if (tmp < 0)  //点now在start和end确立的直线的左边
+    d = point_to_line(&now, &start, &end);  // left
   else
-    d = -point_to_line(&now, &start, &end); // right
+    d = -point_to_line(&now, &start, &end);  // right
 
+  //目标直线+-5cm内为死区,无偏移动作
+  // if (fabs(d) < 0.05)
+  //   d = 0;
 
-  //目标直线+-5cm内为死区，无偏移动作
-  if(fabs(d) < 0.05)
-    d = 0;
-
-  //根据当前点到起点，终点确立的直线距离 确立后轮转向角
-  //p控制系数20
+  //根据当前点到起点,终点确立的直线距离 确立后轮转向角
+  // p控制系数20
   float si_dot = 20 * d;
 
   //过大限制
-  if (si_dot > 20)
-    si_dot = 20;
-  if (si_dot < -20)
-    si_dot = -20;
+  if (si_dot > 20) si_dot = 20;
+  if (si_dot < -20) si_dot = -20;
 
   return si_dot;
 }
 
 void *startMotiCtrlByAuto(void *args) {
-
   _GatewayInfo gwInfo;
   _UwbData uwb_now;
+  _ComGpdKey gpd_info;
 
-  Point2d start = {3, 0};
-  Point2d end = {3, 20};
+  Point2d start = {-4, 70};
+  Point2d end = {-30, 70};
   Point2d now = start;
 
   float angle = 0;
   float speed = 30;
 
-  float gyro_init,gyro_now;
+  kf_init();  // KF初始化
 
-  kf_init();//KF初始化
+  Point2d map[500];
+  generate_path(start, end, 500, map);
 
   while (1) {
     pthread_mutex_lock(&(g_gtwy_info_mutex));
@@ -197,42 +277,50 @@ void *startMotiCtrlByAuto(void *args) {
     uwb_now = filter_debounce(g_uwb_loc);
     pthread_mutex_unlock(&(g_uwb_mutex));
 
-    gyro_init = parse_gyro(g_rv3399_info);
+    pthread_mutex_lock(&(g_gpd_mutex));
+    gpd_info = g_gpd_key;
+    pthread_mutex_unlock(&(g_gpd_mutex));
+
+    if (gpd_info.key == 0x0004) {  // R2按键 陀螺仪清零
+      gyro_init = parse_gyro(g_rv3399_info);
+    }
+    gyro_now = parse_gyro(g_rv3399_info);
 
     // test
-    // Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
-    // Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
-    // save_uwb_data(g_uwb_loc,"/userdata/media/test/appcar/UwbDataRaw.csv",sizeof("/userdata/media/test/appcar/UwbDataRaw.csv"));
-    // save_uwb_data(uwb_now,"/userdata/media/test/appcar/UwbData.csv",sizeof("/userdata/media/test/appcar/UwbData.csv"));
+    Log(DEBUG, "before filter x=%.2f,y=%.2f", g_uwb_loc.x, g_uwb_loc.y);
+    Log(DEBUG, "after filter x=%.2f,y=%.2f", uwb_now.x, uwb_now.y);
+    save_uwb_data(g_uwb_loc, "/userdata/media/test/appcar/UwbDataRaw.csv",
+                  sizeof("/userdata/media/test/appcar/UwbDataRaw.csv"));
+    save_uwb_data(uwb_now, "/userdata/media/test/appcar/UwbData.csv",
+                  sizeof("/userdata/media/test/appcar/UwbData.csv"));
     // label_cam_send_start(5, 63);
-    // Log(DEBUG, "symbol=%d,theta_cam=%d", g_rv3399_info.symbol, g_rv3399_info.theta_cam);
-    Log(DEBUG, "theta_gyro=%d", parse_gyro(g_rv3399_info));
-    save_gyro_data(parse_gyro(g_rv3399_info),"/userdata/media/test/appcar/gyro.csv",sizeof("/userdata/media/test/appcar/gyro.csv"));
-    // label_cam_send_end();
+    // Log(DEBUG, "symbol=%d,theta_cam=%d", g_rv3399_info.symbol,
+    // g_rv3399_info.theta_cam);
+    // Log(DEBUG, "theta_gyro=%d", parse_gyro(g_rv3399_info));
+    // save_gyro_data(parse_gyro(g_rv3399_info),
+    //                "/userdata/media/test/appcar/gyro.csv",
+    //                sizeof("/userdata/media/test/appcar/gyro.csv"));
+    Log(DEBUG, "gyro_init=%d", gyro_init);
+    Log(DEBUG, "theta_gyro=%d", get_gyro());  //左正右负
+    save_gyro_data(get_gyro(), "/userdata/media/test/appcar/gyro.csv",
+                   sizeof("/userdata/media/test/appcar/gyro.csv"));
 
     // test end
 
-    if (g_a_suspend) // Gpd开启自动模式
+    if (g_a_suspend)  // Gpd开启自动模式
     {
       now.x_ = uwb_now.x;
       now.y_ = uwb_now.y;
 
-      if (dist(&now, &end) > 1) { //未到达终点
-
-        // path_plan();
-        gyro_now = parse_gyro(g_rv3399_info);
-        angle = path_track(now, start, end);
-
+      if (dist(&now, &end) > 1) {  //未到达终点
+        angle = pure_pursuit_control(now, map, 500);
         Log(DEBUG, "calc_angle=%.2f", angle);
-
-        send_control_cmd(angle, speed); //发送控制命令
-      } else {                          //到达终点 停车
-        send_control_cmd(0, 0);         //发送控制命令
+        send_control_cmd(angle, speed);  //发送控制命令
+      } else {                           //到达终点 停车
+        send_control_cmd(0, 0);          //发送控制命令
       }
-
-        gyro_init = gyro_now;
     }
-    usleep(50000); // 50ms
-  }
+    usleep(50000);  // 50ms
+  }                 // end while
   return NULL;
 }
