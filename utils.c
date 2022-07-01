@@ -1,6 +1,10 @@
 #include <stdint.h>
-
 #include "utils.h"
+
+typedef union {
+	float numeric;
+	uint8_t ascii[4];
+} CharFloat;
 
 // Table of CRC values for high-order byte
 const uint8_t crcTableHigh[] = {
@@ -73,4 +77,35 @@ uint8_t cmdSum(uint8_t *arr, int len) {
     sum += (uint8_t)arr[i];
   }
   return (uint8_t)(sum & 0xFF);
+}
+
+/**
+ * @brief float转换为4byte (大端传输)
+ *
+ * @param numeric
+ * @param returnData
+**/
+void float2byte(float numeric,uint8_t* returnData) {
+	CharFloat value;
+	int i = 0;
+	value.numeric = numeric;
+	returnData[i++] = value.ascii[0];
+	returnData[i++] = value.ascii[1];
+	returnData[i++] = value.ascii[2];
+	returnData[i++] = value.ascii[3];
+}
+
+/**
+ * @brief 4byte转换为float
+ *
+ * @param str
+ * @return float
+**/
+float byte2float(uint8_t *str) {
+	CharFloat value;
+	value.ascii[0] = str[0];
+	value.ascii[1] = str[1];
+	value.ascii[2] = str[2];
+	value.ascii[3] = str[3];
+	return value.numeric;
 }
