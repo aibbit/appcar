@@ -65,13 +65,16 @@ def main():
         plt.plot(cx, cy, ".r", label="course")
         plt.plot(data_x, data_y, "-b", label="trajectory")
 
-        draw.draw_car(state.x, state.y, PI + state.yaw, state.steer)
+        draw.draw_car(state.x, state.y, state.yaw, state.steer)
 
         plt.axis("equal")
         plt.grid(True)
         # plt.title("Speed[km/h]:" + str(state.v * 3.6)[:4] + "  " + "angle:" + str(state.steer* 57.29578)[:4])
         plt.title("angle:" + str(state.steer * 57.29578)[:4] + "  " + "yaw:" +
                   str(state.yaw * 57.29578)[:4])
+        plt.gcf().canvas.mpl_connect(
+            'key_release_event',
+            lambda event: [exit(0) if event.key == 'escape' else None])
         plt.pause(0.01)
     plt.show()
 
