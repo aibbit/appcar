@@ -6,12 +6,13 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "math_calc.h"
 #include "filter.h"
 #include "frenet.h"
 #include "log.h"
-#include "math_calc.h"
 #include "startGamepadCapData.h"
 #include "startLocalNetCapData.h"
+#include "startMotiCtrlByAuto.h"
 #include "startUwbCapData.h"
 #include "utils.h"
 
@@ -83,6 +84,21 @@ void save_gyro_data(int data, char *filename, int namesize) {
   }
 }
 
+//保存行驶状态到文件
+void save_state_data(CarState data, char *filename, int namesize) {
+  FILE *fp = NULL;
+  char file_name[128] = {0};
+  char buf[128] = {0};
+
+  memcpy(file_name, filename, namesize);
+  sprintf(buf, "%.3f,%.3f,%d,%.3f,%.3f\n", data.x, data.y,data.yaw,data.angle,data.speed);
+
+  if ((fp = fopen(file_name, "a+")) != NULL) {
+    fprintf(fp, "%s", buf);
+    fclose(fp);
+  }
+}
+
 /**
  * @brief 解析3399中陀螺仪数据
  *
@@ -144,8 +160,8 @@ void turn_angle(int angle) {
 }
 
 static int gyro_init = 0;   //陀螺仪清零值
-volatile int gyro_now = 0;  //陀螺仪相对值
-static int get_gyro(void) { return calc_gyro(gyro_init, gyro_now); }
+volatile int gyro_now = 0;  //陀螺仪当前值
+int get_gyro(void) { return calc_gyro(gyro_init, gyro_now); }
 
 //根据起点和终点生成直线地图
 //插值函数简单替代
@@ -172,11 +188,11 @@ void generate_path(const Point2d start, const Point2d end, const int size,
     }
   } else {
     k = (end.y_ - start.y_) / (end.x_ - start.x_);
-    printf("k = %f\n, ", k);
+    // printf("k = %f\n, ", k);
     max_length = end.x_ - start.x_;
-    printf("max_length = %f\n, ", max_length);
+    // printf("max_length = %f\n, ", max_length);
     step = max_length / (size - 1);
-    printf("step = %f\n, ", step);
+    // printf("step = %f\n, ", step);
 
     for (int m = 0; m < size; m++) {
       map[m].x_ = start.x_ + step * m;
@@ -187,9 +203,8 @@ void generate_path(const Point2d start, const Point2d end, const int size,
 
 double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
   const float Kv = 0.1;  // 前视距离系数
-  const float Kp = 0.8;  // 速度P控制器系数
-  const float Ld0 = 2;   // 预瞄距离的下限值
-  const float L = 1.2;   // 车辆轴距
+  const float Ld0 = 2.0;   // 预瞄距离的下限值
+  const float L = 1.0;   // 车辆轴距
 
   // 搜索最临近的路点
   int ind = 0;
@@ -197,7 +212,6 @@ double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
 
   // 从该点开始向后搜索，找到与预瞄距离最相近的一个轨迹点
   float L_steps = 0;  // 参考轨迹上几个点的临近距离
-
   while (Ld0 > L_steps && (ind + 1) < size) {
     L_steps +=
         distance(map[ind].x_, map[ind].y_, map[ind + 1].x_, map[ind + 1].y_);
@@ -241,7 +255,7 @@ double path_track(Point2d now, Point2d start, Point2d end) {
   //   d = 0;
 
   //根据当前点到起点,终点确立的直线距离 确立后轮转向角
-  // p控制系数20
+  //p控制系数20
   float si_dot = 20 * d;
 
   //过大限制
@@ -266,7 +280,9 @@ void *startMotiCtrlByAuto(void *args) {
   kf_init();  // KF初始化
 
   Point2d map[500];
-  generate_path(start, end, 500, map);
+  // generate_path(start, end, 500, map);
+
+  CarState now_state;
 
   while (1) {
     pthread_mutex_lock(&(g_gtwy_info_mutex));
@@ -281,6 +297,12 @@ void *startMotiCtrlByAuto(void *args) {
     gpd_info = g_gpd_key;
     pthread_mutex_unlock(&(g_gpd_mutex));
 
+    if (gpd_info.key == 0x2000) {  // 上按键 地图1 向西方向
+      generate_path(start, end, 500, map);
+    }
+    if (gpd_info.key == 0x0800) {  // 下按键 地图2 向东方向
+      generate_path(end, start, 500, map);
+    }
     if (gpd_info.key == 0x0004) {  // R2按键 陀螺仪清零
       gyro_init = parse_gyro(g_rv3399_info);
     }
@@ -302,8 +324,8 @@ void *startMotiCtrlByAuto(void *args) {
     //                sizeof("/userdata/media/test/appcar/gyro.csv"));
     Log(DEBUG, "gyro_init=%d", gyro_init);
     Log(DEBUG, "theta_gyro=%d", get_gyro());  //左正右负
-    save_gyro_data(get_gyro(), "/userdata/media/test/appcar/gyro.csv",
-                   sizeof("/userdata/media/test/appcar/gyro.csv"));
+    // save_gyro_data(get_gyro(), "/userdata/media/test/appcar/gyro.csv",
+    //                sizeof("/userdata/media/test/appcar/gyro.csv"));
 
     // test end
 
@@ -314,11 +336,21 @@ void *startMotiCtrlByAuto(void *args) {
 
       if (dist(&now, &end) > 1) {  //未到达终点
         angle = pure_pursuit_control(now, map, 500);
-        Log(DEBUG, "calc_angle=%.2f", angle);
+        //Log(DEBUG, "calc_angle=%.2f", angle);
         send_control_cmd(angle, speed);  //发送控制命令
       } else {                           //到达终点 停车
         send_control_cmd(0, 0);          //发送控制命令
       }
+      //test
+      now_state.x = now.x_;
+      now_state.y = now.y_;
+      now_state.yaw = get_gyro();
+      now_state.angle = angle;
+      now_state.speed = speed;
+      Log(DEBUG, "x=%.2f,y=%.2f,yaw=%d,angle=%.2f", now_state.x, now_state.y,now_state.yaw,now_state.angle);
+      save_state_data(now_state,"/userdata/media/test/appcar/CarState.csv",
+                  sizeof("/userdata/media/test/appcar/CarState.csv"));
+      //test end
     }
     usleep(50000);  // 50ms
   }                 // end while
