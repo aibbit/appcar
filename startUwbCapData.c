@@ -1,13 +1,15 @@
+#include "startUwbCapData.h"
+
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h>
 
 #include "log.h"
 #include "rv1126com.h"
-#include "startUwbCapData.h"
+#include "utils.h"
 
 #define MAX_BUFF 1024
 #define UWB_DATA_SIZE 12
@@ -21,39 +23,29 @@ int fd_uwb = 0;
 //数据帧头  999.999=   F0       FF       79        44
 //                   data0     data1    data2    data3
 
-//字符转换成浮点数
-static float exchange_data(char *data) {
-  float float_data;
-  float_data = *((float *)data);
-  // printf("float_data = %f\n", float_data);
-  return float_data;
-}
-
-//4字节head 4字节x 4字节y
+// 4字节head 4字节x 4字节y
 void ParseDataForUwb(char chr) {
   static uint8_t chrBuf[MAX_BUFF];
   static int chrCnt = 0;
-  char x[4] = {0};
-  char y[4] = {0};
+  uint8_t x[4] = {0};
+  uint8_t y[4] = {0};
 
   chrBuf[chrCnt++] = chr;
-  if (chrCnt < UWB_DATA_SIZE)
-    return;
+  if (chrCnt < UWB_DATA_SIZE) return;
 
   if ((chrBuf[0] != 0xF0) || (chrBuf[1] != 0xFF) || (chrBuf[2] != 0x79) ||
       (chrBuf[3] != 0x44)) {
-
-    Log(WARN, "UWB check Error: %x, %x, %x, %x", chrBuf[0], chrBuf[1], chrBuf[2],
-        chrBuf[3]);
-    memcpy(&chrBuf[0], &chrBuf[1], UWB_DATA_SIZE-1);//向前移动1字节
+    Log(WARN, "UWB check Error: %x, %x, %x, %x", chrBuf[0], chrBuf[1],
+        chrBuf[2], chrBuf[3]);
+    memcpy(&chrBuf[0], &chrBuf[1], UWB_DATA_SIZE - 1);  //向前移动1字节
     chrCnt--;
     return;
   }
 
-  memcpy(&x[0], &chrBuf[4], 4);
-  memcpy(&y[0], &chrBuf[8], 4);
-  float x0 = exchange_data(x);
-  float y0 = exchange_data(y);
+  memcpy(x, chrBuf + 4, 4);
+  memcpy(y, chrBuf + 8, 4);
+  float x0 = byte2float(x);
+  float y0 = byte2float(y);
 
   pthread_mutex_lock(&(g_uwb_mutex));
   g_uwb_loc.x = x0;
@@ -66,9 +58,8 @@ void ParseDataForUwb(char chr) {
 }
 
 void *startComRcvUwbData(void *args) {
-
-  char buffer[MAX_BUFF];   //接收串口缓冲数组
-  bzero(buffer, MAX_BUFF); //清除缓存
+  char buffer[MAX_BUFF];    //接收串口缓冲数组
+  bzero(buffer, MAX_BUFF);  //清除缓存
 
   while (1) {
     int sz = rv1126_com_receive(fd_uwb, buffer, 36);
@@ -84,7 +75,7 @@ void *startComRcvUwbData(void *args) {
     }
 
     bzero(buffer, MAX_BUFF);
-    usleep(200000);//200ms
+    usleep(200000);  // 200ms
     // sleep(1);
   }
 
@@ -98,7 +89,7 @@ void *startComRcvUwbData(void *args) {
 /**
  * @brief uwb串口初始化
  *
-**/
+ **/
 void startComInitForUWB() {
   int tryCounter = 0;
 
@@ -134,9 +125,8 @@ void startComInitForUWB() {
  * @brief 获取UWB数据接口
  *
  * @return _UwbData
-**/
+ **/
 _UwbData get_uwb_data(void) {
-
   _UwbData data = {0};
 
   pthread_mutex_lock(&(g_uwb_mutex));
@@ -146,8 +136,13 @@ _UwbData get_uwb_data(void) {
   return data;
 }
 
-//保存uwb数据到文件
-//测试滤波器
+/**
+ * @brief 保存uwb数据到文件
+ *
+ * @param data
+ * @param filename
+ * @param namesize
+**/
 void save_uwb_data(_UwbData data, char *filename, int namesize) {
   FILE *fp = NULL;
   char file_name[128] = {0};
