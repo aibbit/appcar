@@ -4,7 +4,9 @@ import math
 
 PI = np.pi
 
+
 class Arrow:
+
     def __init__(self, x, y, theta, L, c):
         angle = np.deg2rad(30)
         d = 0.3 * L
@@ -27,10 +29,13 @@ class Arrow:
         y_hat_end_R = y_hat_start - d * np.sin(theta_hat_R)
 
         plt.plot([x_start, x_end], [y_start, y_end], color=c, linewidth=w)
-        plt.plot([x_hat_start, x_hat_end_L],
-                 [y_hat_start, y_hat_end_L], color=c, linewidth=w)
-        plt.plot([x_hat_start, x_hat_end_R],
-                 [y_hat_start, y_hat_end_R], color=c, linewidth=w)
+        plt.plot([x_hat_start, x_hat_end_L], [y_hat_start, y_hat_end_L],
+                 color=c,
+                 linewidth=w)
+        plt.plot([x_hat_start, x_hat_end_R], [y_hat_start, y_hat_end_R],
+                 color=c,
+                 linewidth=w)
+
 
 def draw_car(x, y, yaw, steer, color='black'):
     car = np.array([[-C.RB, -C.RB, C.RF, C.RF, -C.RB],
@@ -43,10 +48,10 @@ def draw_car(x, y, yaw, steer, color='black'):
     rrWheel = wheel.copy()
     frWheel = wheel.copy()
 
-    #车身旋转矩阵？
+    # 车身旋转矩阵？
     Rot1 = np.array([[math.cos(yaw), -math.sin(yaw)],
                      [math.sin(yaw), math.cos(yaw)]])
-    #车轮旋转矩阵？
+    # 车轮旋转矩阵？
     Rot2 = np.array([[math.cos(steer), math.sin(steer)],
                      [-math.sin(steer), math.cos(steer)]])
 
@@ -72,6 +77,7 @@ def draw_car(x, y, yaw, steer, color='black'):
     plt.plot(rlWheel[0, :], rlWheel[1, :], color)
     Arrow(x, y, yaw, C.WB * 0.6, color)
 
+
 class C:
 
     dt = 0.1  # T step
@@ -87,21 +93,22 @@ class C:
     MAX_STEER = 0.30
     MAX_ACCELERATION = 5.0
 
+
 if __name__ == "__main__":
 
-    x = np.linspace(0,5,100)
+    x = np.linspace(0, 5, 100)
     y = 3
 
     i = 0
-    while i< 100 :
+    while i < 100:
 
         plt.cla()
-        plt.plot(x[i], y,'r',marker='.',linewidth=4)
+        plt.plot(x[i], y, 'r', marker='.', linewidth=4)
         draw_car(x[i], y, PI + 0, 0)
-        #draw_car( 10, 0, PI/2, 0)
+        # draw_car( 10, 0, PI/2, 0)
         plt.axis("equal")
         plt.pause(0.001)
 
         i += 1
 
-    plt.show()#画图
+    plt.show()  # 画图
