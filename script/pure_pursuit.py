@@ -21,10 +21,10 @@ class VehicleState:
 
     def update(state, a, delta):
 
-        if delta > PI/6:
-            delta = PI/6
-        if delta < -PI/6:
-            delta = -PI/6
+        # if delta > PI/6:
+        #     delta = PI/6
+        # if delta < -PI/6:
+        #     delta = -PI/6
 
         state.x = state.x + state.v * math.cos(state.yaw) * dt
         state.y = state.y + state.v * math.sin(state.yaw) * dt
@@ -56,8 +56,8 @@ def pure_pursuit_control(state, cx, cy, pind):
 
     alpha = math.atan2(ty - state.y, tx - state.x) - state.yaw
 
-    if state.v < 0:  # back
-        alpha = math.pi - alpha
+    # if state.v < 0:  # back
+    #     alpha = math.pi - alpha
 
     delta = math.atan2(2.0 * L * math.sin(alpha) / Lfc, 1.0)
 
@@ -135,14 +135,14 @@ def point_to_line(state,x1,y1,x2,y2):
 def main():
     #  设置目标路点
     cx = np.arange(0, 50, 1)
-    cy = [math.sin(ix / 5.0) * 0 / 2.0 for ix in cx]
+    cy = [math.sin(ix / 5.0) * ix / 2.0 for ix in cx]
 
     target_speed = 1.8 / 3.6  # [m/s]
 
     T = 200.0  # 最大模拟时间
 
     # 设置车辆的初始状态
-    state = VehicleState(x=0.0, y=1.0, yaw=0.0, v=0.0,steer=0.0)
+    state = VehicleState(x=5.0, y=0.0, yaw=PI/2, v=0.0,steer=0.0)
 
     lastIndex = len(cx) - 1
     time = 0.0
