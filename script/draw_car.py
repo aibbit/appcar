@@ -48,6 +48,8 @@ def draw_car(x, y, yaw, steer, color='black'):
     rrWheel = wheel.copy()
     frWheel = wheel.copy()
 
+    yaw = yaw + PI
+
     # 车身旋转矩阵？
     Rot1 = np.array([[math.cos(yaw), -math.sin(yaw)],
                      [math.sin(yaw), math.cos(yaw)]])
@@ -79,10 +81,16 @@ def draw_car(x, y, yaw, steer, color='black'):
 
 
 class C:
-
-    dt = 0.1  # T step
-
     # vehicle config
+    # 基准点为两前轮(动力轮)中点
+    # RF = 1          # [m] 基准点到车后身距离
+    # RB = 0.2        # [m] 基准点到车前身距离
+    # W = 0.6         # [m] 车宽
+    # WD = 0.8 * W    # [m] 左右轮间距
+    # WB = 1          # [m] 前后轮间距
+    # TR = 0.15       # [m] 轮胎半径
+    # TW = 0.2        # [m] 轮胎宽度
+
     RF = 3.3  # [m] distance from rear to vehicle front end of vehicle
     RB = 0.8  # [m] distance from rear to vehicle back end of vehicle
     W = 2.4  # [m] width of vehicle
@@ -90,8 +98,6 @@ class C:
     WB = 2.5  # [m] Wheel base
     TR = 0.44  # [m] Tyre radius
     TW = 0.7  # [m] Tyre width
-    MAX_STEER = 0.30
-    MAX_ACCELERATION = 5.0
 
 
 if __name__ == "__main__":
@@ -104,7 +110,7 @@ if __name__ == "__main__":
 
         plt.cla()
         plt.plot(x[i], y, 'r', marker='.', linewidth=4)
-        draw_car(x[i], y, PI + 0, 0)
+        draw_car(x[i], y, 0, 0)
         # draw_car( 10, 0, PI/2, 0)
         plt.axis("equal")
         plt.pause(0.001)

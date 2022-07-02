@@ -1,14 +1,14 @@
-import numpy as np
 import math
+import numpy as np
 import matplotlib.pyplot as plt
 
 import draw_car as draw
 
-k = 0.1  # 前视距离系数
+k = 0.1    # 前视距离系数
 Lfc = 2.0  # 前视距离
-Kp = 1.0  # 速度P控制器系数
-dt = 0.2  # 时间间隔，单位：s
-L = 2.9  # 车辆轴距，单位：m
+Kp = 1.0   # 速度P控制器系数
+dt = 0.2   # 时间间隔，单位：s
+L = 2.9    # 车辆轴距，单位：m
 PI = np.pi
 
 
@@ -174,13 +174,16 @@ def main():
         plt.plot(x, y, "-b", label="trajectory")
         plt.plot(cx[target_ind], cy[target_ind], "go", label="target")
 
-        draw.draw_car(state.x, state.y, PI + state.yaw, state.steer)
+        draw.draw_car(state.x, state.y, state.yaw, state.steer)
 
         plt.axis("equal")
         plt.grid(True)
         # plt.title("Speed[km/h]:" + str(state.v * 3.6)[:4] + "  " + "angle:" + str(state.steer* 57.29578)[:4])
         plt.title("angle:" + str(state.steer * 57.29578)[:4] + "  " + "yaw:" +
                   str(state.yaw * 57.29578)[:4])
+        plt.gcf().canvas.mpl_connect(
+            'key_release_event',
+            lambda event: [exit(0) if event.key == 'escape' else None])
         plt.pause(0.01)
     plt.show()
 
