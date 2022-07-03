@@ -2,33 +2,51 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# KF参数
-Q = 1e-6   # 预测(过程)噪声方差
-R = 0.002  # 测量(观测)噪声方差
-Kg = 0
-lastP = 1  # lastP相当于上一次的值,初始值可以为1,不可以为0
-x_hat = 0
-nowP = 0
+
+# 卡尔曼滤波器
+class KF:
+    def __init__(self, Q=0.0, R=0.0):
+        # KF参数
+        self.Q = Q  # 预测(过程)噪声方差
+        self.R = R  # 测量(观测)噪声方差
+        self.Kg = 0
+        self.lastP = 1  # lastP相当于上一次的值,初始值可以为1,不可以为0
+        self.x_hat = 0
+        self.nowP = 0
+
+    # KF滤波
+    def kalman(self, input):
+
+        x_t = self.x_hat                            # 当前先验预测值 = 上一次最优值
+        nowP = self.lastP + self.Q                  # 本次的协方差矩阵
+        self.Kg = nowP / (nowP + self.R)            # 卡尔曼增益系数计算
+        output = x_t + self.Kg * (input - x_t)      # 当前最优值
+        self.x_hat = output                         # 更新最优值
+        self.lastP = (1 - self.Kg) * nowP           # 更新协方差矩阵
+        return output
 
 
-# KF滤波
-def kalman(input):
-    # python中如果若想在函数内部对函数外的变量进行操作,就需要在函数内部声明其为global.
-    global Q
-    global R
-    global Kg
-    global lastP
-    global x_hat
-    global nowP
+# 一阶滞后滤波器
+# A=0-1
+def FirstOrderLagFilter(Data, A):
+    ReturnData = [Data[0]]
+    for Value in Data[1:]:
+        ReturnValue = (1 - A) * Value + A * ReturnData[-1]
+        ReturnData.append(ReturnValue)
+    return ReturnData
 
-    x_t = x_hat              # 当前先验预测值 = 上一次最优值
-    nowP = lastP + Q         # 本次的协方差矩阵
-    Kg = nowP / (nowP + R)   # 卡尔曼增益系数计算
-    output = x_t + Kg * (input - x_t)  # 当前最优值
-    x_hat = output           # 更新最优值
-    lastP = (1 - Kg) * nowP  # 更新协方差矩阵
 
-    return output
+# 限幅滤波器
+# Amplitude 本次值与上次值之差
+def LimitFilter(Data, Amplitude):
+    ReturnData = [Data[0]]
+    for Value in Data[1:]:
+        # print(abs(Value - ReturnData[-1]))
+        if abs(Value - ReturnData[-1]) < Amplitude:  # 限幅
+            ReturnData.append(Value)
+        else:
+            ReturnData.append(ReturnData[-1])
+    return ReturnData
 
 
 # 读取csv数据 转换为list
@@ -49,10 +67,14 @@ if __name__ == "__main__":
     timeData, data_x_raw, data_y_raw = read_csv("UwbDataRaw.csv")
     timeData2, data_x, data_y = read_csv("UwbData.csv")
 
-    # 卡尔曼滤波
+    LimitFilterData = LimitFilter(data_x_raw, 10)
+    LagFilterData = FirstOrderLagFilter(LimitFilterData, 0.95)
+    # print(LagFilterData)
+
     predData = []
-    for t in data_x_raw:
-        predVal = kalman(t)
+    kf = KF(1e-6, 0.002)   # 初始化KF
+    for t in LagFilterData:
+        predVal = kf.kalman(t)
         predData.append(predVal)
     # print(predData)
 
@@ -60,17 +82,18 @@ if __name__ == "__main__":
     plt.rcParams['font.family'] = ['SimHei']    # 字体 支持中文
     plt.rcParams['axes.unicode_minus'] = False  # 正常显示负号
 
-    plt.figure(figsize=(8, 5))                 # 这里定义了图像大小
-    x1, = plt.plot(timeData, data_x_raw, 'r')  # 原始数据
-    # x2, = plt.plot(timeData, predData,'g')   # 仿真KF 参数相同
-    x2, = plt.plot(timeData2, data_x, 'b')     # KF结果
+    # 数据 x
+    plt.figure(figsize=(8, 5))                  # 这里定义了图像大小
+    x1, = plt.plot(timeData, data_x_raw, 'r')   # 原始数据
+    x2, = plt.plot(timeData, predData, 'g')     # 仿真KF 参数相同
+    # x2, = plt.plot(timeData2, data_x, 'b')      # KF结果
 
-    plt.title("UwbData")    # 设置标题
-    plt.xlabel("Times")     # 横轴名称
-    plt.ylabel("Data_X")    # 纵轴名称
+    plt.title("UwbData")  # 设置标题
+    plt.xlabel("Times")   # 横轴名称
+    plt.ylabel("Data_X")  # 纵轴名称
     plt.legend(handles=[x1, x2], labels=["滤波前", "滤波后"], loc="best")  # 图例
 
-    # 画图 y轴
+    # 数据 y
     plt.figure(figsize=(8, 5))
     plt.plot(timeData, data_y_raw, 'r')
     plt.plot(timeData2, data_y, 'b')
