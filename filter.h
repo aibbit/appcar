@@ -13,4 +13,7 @@ typedef struct {
 void Kalman_Init(Kalman_TypeDef *KF,double Q,double R);
 double Kalman_Filter(Kalman_TypeDef *KF, double input);
 
+double lag_filter(double input, double a);
+double limit_filter(double input, double limit);
+
 #endif  //_FILTER_H_

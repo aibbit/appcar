@@ -43,12 +43,13 @@ void kf_init(void) {
 //除初始值0外 当x y同时为0时说明未找到uwb数据 维持上次的uwb数据
 //当10次全为0后 输出0 并打印WARN日志
 _UwbData filter_debounce(_UwbData now_uwb) {
-  _UwbData data;
+  _UwbData data = {0};
 
   static _UwbData last_data = {0};
   static int count = 0;  //纪录数据为0次数
 
   if (now_uwb.x != 0 && now_uwb.y != 0) {
+    //TODO 在这里添加其他滤波方式
     data.x = Kalman_Filter(&KF_X, now_uwb.x);
     data.y = Kalman_Filter(&KF_Y, now_uwb.y);
     count = 0;
@@ -58,7 +59,11 @@ _UwbData filter_debounce(_UwbData now_uwb) {
     count++;
   }
 
-  if (count > 10) {
+  if(count > 100) {
+    data.x = 0;
+    data.y = 0;
+    Log(ERROR, "no uwb signal");
+  } else if (count > 20) {
     data.x = 0;
     data.y = 0;
     Log(WARN, "%d times the uwb data is zero", count);
@@ -140,7 +145,7 @@ int calc_gyro(int init, int now) {
   return theta;
 }
 
-//根据陀螺仪原地转相应角度
+//TODO 根据陀螺仪原地转相应角度 不能自动停车
 void turn_angle(int angle) {
   int gyro_init = parse_gyro(g_rv3399_info);
   int gyro_now = gyro_init;
@@ -159,6 +164,7 @@ void turn_angle(int angle) {
   send_control_cmd(0, 0);
 }
 
+//FIXME 在车头朝向西时初始化
 static int gyro_init = 0;   //陀螺仪清零值
 volatile int gyro_now = 0;  //陀螺仪当前值
 int get_gyro(void) { return calc_gyro(gyro_init, gyro_now); }
@@ -297,12 +303,14 @@ void *startMotiCtrlByAuto(void *args) {
     gpd_info = g_gpd_key;
     pthread_mutex_unlock(&(g_gpd_mutex));
 
+    //TODO 建立地图
     if (gpd_info.key == 0x2000) {  // 上按键 地图1 向西方向
       generate_path(start, end, 500, map);
     }
     if (gpd_info.key == 0x0800) {  // 下按键 地图2 向东方向
       generate_path(end, start, 500, map);
     }
+
     if (gpd_info.key == 0x0004) {  // R2按键 陀螺仪清零
       gyro_init = parse_gyro(g_rv3399_info);
     }

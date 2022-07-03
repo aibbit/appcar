@@ -26,6 +26,7 @@ double Kalman_Filter(Kalman_TypeDef *KF, double input) {
 }
 // KF end
 
+//FIXME 只对单一变量滤波有效
 // 一阶滞后滤波器
 // a=0-1
 double lag_filter(double input, double a) {
@@ -41,6 +42,7 @@ double lag_filter(double input, double a) {
   return tmp;
 }
 
+//FIXME 只对单一变量滤波有效
 // 限幅滤波器
 // limit 本次值与上次值差的上限
 double limit_filter(double input, double limit) {
