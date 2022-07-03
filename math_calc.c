@@ -14,7 +14,7 @@ int sign(double x) {
 //浮点数相等
 int is_nearly_equal(double x1, double x2)
 {
-    return (fabs((x2-x1) <= 1e-6));
+    return (fabs((x2-x1)) <= 1e-6);
 }
 
 //正数四舍五入
