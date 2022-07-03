@@ -26,18 +26,35 @@ double Kalman_Filter(Kalman_TypeDef *KF, double input) {
 }
 // KF end
 
-//a=[0,1]
-double lag_filter(double input,double a){
-
+// 一阶滞后滤波器
+// a=0-1
+double lag_filter(double input, double a) {
   static double last_value = 0.0;
   double tmp = 0.0;
 
-  if(is_nearly_equal(last_value,0.0)){
+  if (is_nearly_equal(last_value, 0.0)) {
     tmp = input;
+  } else {
+    tmp = a * input + (1 - a) * last_value;
   }
-  else{
-    tmp = a * input + (1-a) * last_value;
-  }
-  last_value = input;
+  last_value = tmp;
   return tmp;
+}
+
+// 限幅滤波器
+// limit 本次值与上次值差的上限
+double limit_filter(double input, double limit) {
+  static double last_value = 0.0;
+  double tmp = 0.0;
+
+  if (is_nearly_equal(last_value, 0.0)) {
+    tmp = input;
+  } else {
+    if (fabs(input - last_value) < limit)
+      tmp = input;
+    else
+      tmp = last_value;
+  }
+    last_value = tmp;
+    return tmp;
 }
