@@ -28,15 +28,15 @@ class CarState:
     def __init__(self, x=0.0, y=0.0, yaw=0.0, steer=0.0, v=0.0):
         self.x = x
         self.y = y
-        self.yaw = yaw
-        self.steer = steer
+        self.yaw = yaw * 0.01745329
+        self.steer = steer * 0.01745329
         self.v = v
 
     def update(state, x, y, yaw, steer, v):
         state.x = x
         state.y = y
-        state.yaw = state.yaw + yaw
-        state.steer = steer
+        state.yaw = yaw * 0.01745329
+        state.steer = steer * 0.01745329
         state.v = v
         return state
 
@@ -56,8 +56,8 @@ def main():
     for index in range(len(timeData)):
 
         state = CarState.update(state, data_x[index], data_y[index],
-                                data_yaw[index], data_steer[index],
-                                data_v[index])
+                                data_yaw[index],
+                                data_steer[index], data_v[index])
         cx = data_x[index]
         cy = data_y[index]
 
@@ -70,8 +70,8 @@ def main():
         plt.axis("equal")
         plt.grid(True)
         # plt.title("Speed[km/h]:" + str(state.v * 3.6)[:4] + "  " + "angle:" + str(state.steer* 57.29578)[:4])
-        plt.title("angle:" + str(state.steer * 57.29578)[:4] + "  " + "yaw:" +
-                  str(state.yaw * 57.29578)[:4])
+        plt.title("angle:" + str(state.steer * 57.295779513)[:4] + "  " + "yaw:" +
+                  str(state.yaw * 57.295779513)[:4])
         plt.gcf().canvas.mpl_connect(
             'key_release_event',
             lambda event: [exit(0) if event.key == 'escape' else None])
