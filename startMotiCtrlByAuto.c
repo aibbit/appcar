@@ -207,6 +207,21 @@ void generate_path(const Point2d start, const Point2d end, const int size,
   }
 }
 
+void generate_map(const Point2d point[], const int point_size, Point2d map[], const int map_size){
+
+  Point2d tmp[100]={0};
+
+  for(int i=0;i<point_size-1;i++){
+    generate_path(point[i],point[i+1],100,tmp);
+    memcpy(map + i*100,tmp,100*sizeof(Point2d));
+    if(i*100 > map_size){
+      //TODO 数组越界检查
+      Log(WARN,"map size too small");
+      break;
+    }
+  }
+}
+
 double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
   const float Kv = 0.1;  // 前视距离系数
   const float Ld0 = 2.0;   // 预瞄距离的下限值
@@ -235,7 +250,7 @@ double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
   }
 
   double alpha = 0, delta = 0;
-  alpha = atan2(ty - now.y_, tx - now.x_) - get_gyro() * Degree2Rad;
+  alpha = atan2(ty - now.y_, tx - now.x_) - normalize_angle(get_gyro() * Degree2Rad);
   delta = atan2(2.0 * L * sin(alpha) / Ld0, 1.0);
 
   delta *= Rad2Degree;  //转换为角度
@@ -276,17 +291,21 @@ void *startMotiCtrlByAuto(void *args) {
   _UwbData uwb_now;
   _ComGpdKey gpd_info;
 
-  Point2d start = {-4, 70};
-  Point2d end = {-30, 70};
+  Point2d start = {20, 75};
+  Point2d end = {22, 25};
   Point2d now = start;
 
   float angle = 0;
-  float speed = 30;
+  float speed = 35;
 
   kf_init();  // KF初始化
 
-  Point2d map[500];
+  //TODO 生成地图
+  //FIXME 最后一个点有问题
+  Point2d point[]={{20,75},{20,25},{6,25},{6,6},{33,6},{33,25},{22,25}};
+  Point2d map[600] = {0};
   // generate_path(start, end, 500, map);
+  generate_map(point,7,map,600);
 
   CarState now_state;
 
@@ -302,14 +321,6 @@ void *startMotiCtrlByAuto(void *args) {
     pthread_mutex_lock(&(g_gpd_mutex));
     gpd_info = g_gpd_key;
     pthread_mutex_unlock(&(g_gpd_mutex));
-
-    //TODO 建立地图
-    if (gpd_info.key == 0x2000) {  // 上按键 地图1 向西方向
-      generate_path(start, end, 500, map);
-    }
-    if (gpd_info.key == 0x0800) {  // 下按键 地图2 向东方向
-      generate_path(end, start, 500, map);
-    }
 
     if (gpd_info.key == 0x0004) {  // R2按键 陀螺仪清零
       gyro_init = parse_gyro(g_rv3399_info);
@@ -341,7 +352,7 @@ void *startMotiCtrlByAuto(void *args) {
     {
       now.x_ = uwb_now.x;
       now.y_ = uwb_now.y;
-
+      //TODO 绕圈时有问题
       if (dist(&now, &end) > 1) {  //未到达终点
         angle = pure_pursuit_control(now, map, 500);
         //Log(DEBUG, "calc_angle=%.2f", angle);

@@ -23,6 +23,13 @@ double round(double r)
     return (r > 0.0) ? floor(r + 0.5) : ceil(r - 0.5);
 }
 
+//FIXME
+//normalize angle to [-PI, PI)
+double normalize_angle(const double angle) {
+  const double new_angle = fmod(angle + M_PI, M_PI * 2.0);
+  return (new_angle < 0 ? new_angle + M_PI * 2.0 : new_angle) - M_PI;
+}
+
 //求num平方根的倒数
 //等价于 1.0/sqrt(num)
 double q_rsqrt(double num)

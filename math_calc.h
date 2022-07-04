@@ -19,6 +19,8 @@ int is_nearly_equal(double x1, double x2);
 
 double round(double r);
 
+double normalize_angle(const double angle);
+
 double distance ( double x1, double y1, double x2, double y2 );
 
 //计算两点间距离
