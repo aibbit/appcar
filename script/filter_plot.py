@@ -85,8 +85,8 @@ if __name__ == "__main__":
     # 数据 x
     plt.figure(figsize=(8, 5))                  # 这里定义了图像大小
     x1, = plt.plot(timeData, data_x_raw, 'r')   # 原始数据
-    x2, = plt.plot(timeData, predData, 'g')     # 仿真KF 参数相同
-    # x2, = plt.plot(timeData2, data_x, 'b')      # KF结果
+    # x2, = plt.plot(timeData, predData, 'g')     # 仿真滤波 参数相同 先验已知
+    x2, = plt.plot(timeData2, data_x, 'b')      # 实际滤波结果
 
     plt.title("UwbData")  # 设置标题
     plt.xlabel("Times")   # 横轴名称

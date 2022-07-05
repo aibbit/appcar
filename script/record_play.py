@@ -65,7 +65,8 @@ def main():
         plt.plot(cx, cy, ".r", label="course")
         plt.plot(data_x, data_y, "-b", label="trajectory")
 
-        draw.draw_car(state.x, state.y, state.yaw, state.steer)
+        # 数据和模拟器不一样
+        draw.draw_car(state.x, state.y, state.yaw + PI, - state.steer)
 
         plt.axis("equal")
         plt.grid(True)
