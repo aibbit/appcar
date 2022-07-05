@@ -33,43 +33,69 @@ extern pthread_mutex_t g_gpd_mutex;
 Kalman_TypeDef KF_X;  // UWB_X
 Kalman_TypeDef KF_Y;  // UWB_Y
 
+Limit_TypeDef LMF_X;  // UWB_X
+Limit_TypeDef LMF_Y;  // UWB_Y
+
+Lag_TypeDef LAG_X;    // UWB_X
+Lag_TypeDef LAG_Y;    // UWB_Y
+
 // 滤波器初始化
-void kf_init(void) {
+void filter_init(void) {
   Kalman_Init(&KF_X, 1e-6, 0.002);
   Kalman_Init(&KF_Y, 1e-6, 0.002);
+
+  limit_filter_init(&LMF_X, 10);
+  limit_filter_init(&LMF_Y, 10);
+
+  lag_filter_init(&LAG_X, 0.95);
+  lag_filter_init(&LAG_Y, 0.95);
 }
 
-//对UWB的X Y坐标分别使用初始化的KF进行滤波
+//对UWB的X Y坐标分别使用滤波器进行滤波
 //除初始值0外 当x y同时为0时说明未找到uwb数据 维持上次的uwb数据
-//当10次全为0后 输出0 并打印WARN日志
 _UwbData filter_debounce(_UwbData now_uwb) {
   _UwbData data = {0};
 
   static _UwbData last_data = {0};
   static int count = 0;  //纪录数据为0次数
 
-  if (now_uwb.x != 0 && now_uwb.y != 0) {
-    //TODO 在这里添加其他滤波方式
-    data.x = Kalman_Filter(&KF_X, now_uwb.x);
-    data.y = Kalman_Filter(&KF_Y, now_uwb.y);
-    count = 0;
-  } else {
+  // 除0 -> 限幅 -> 一阶滞后 -> 卡尔曼
+  // 数据不符合维持之前状态
+  if (is_nearly_equal(now_uwb.x, 0) && is_nearly_equal(now_uwb.y, 0)) {
     data.x = last_data.x;
     data.y = last_data.y;
     count++;
+    // printf("%d\t",count);
+  } else {
+    data.x = limit_filter(&LMF_X, now_uwb.x);
+    data.y = limit_filter(&LMF_Y, now_uwb.y);
+    // data.x = limit_filter_1(now_uwb.x,LMF_X.limit);
+
+    data.x = lag_filter(&LAG_X, data.x);
+    data.y = lag_filter(&LAG_Y, data.y);
+    // data.x = lag_filter_1(data.x,0.95);
+
+    data.x = Kalman_Filter(&KF_X, data.x);
+    data.y = Kalman_Filter(&KF_Y, data.y);
+    count = 0;    float target_x;
+    float target_y;
+
   }
 
   if(count > 100) {
+    // 当100次全为0后 输出0 并打印ERROR日志
     data.x = 0;
     data.y = 0;
     Log(ERROR, "no uwb signal");
-  } else if (count > 20) {
+  } else if (count > 10) {
+    // 当10次全为0后 输出0 并打印WARN日志
     data.x = 0;
     data.y = 0;
     Log(WARN, "%d times the uwb data is zero", count);
   }
 
-  last_data = data;
+  last_data = data;    float target_x;
+    float target_y;
 
   return data;
 }
@@ -90,6 +116,7 @@ void save_gyro_data(int data, char *filename, int namesize) {
 }
 
 //保存行驶状态到文件
+//TODO 保存纯跟踪目标点 调试时使用
 void save_state_data(CarState data, char *filename, int namesize) {
   FILE *fp = NULL;
   char file_name[128] = {0};
@@ -130,6 +157,7 @@ int parse_gyro(_RV3399Info g_rv3399_info) {
  * @param now
  * @return int
  **/
+ //FIXME 超过360度可能有问题 角度归一化
 int calc_gyro(int init, int now) {
   int theta = 0;
   theta = now - init;
@@ -222,6 +250,15 @@ void generate_map(const Point2d point[], const int point_size, Point2d map[], co
   }
 }
 
+/**
+ * @brief 纯跟踪路径跟踪算法
+ *
+ * @param now 当前坐标点
+ * @param map 地图
+ * @param size 地图大小
+ * @param target_ind 地图中的目标点 临时调试接口
+ * @return double 车轮转角
+**/
 double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
   const float Kv = 0.1;  // 前视距离系数
   const float Ld0 = 2.0;   // 预瞄距离的下限值
@@ -250,7 +287,7 @@ double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
   }
 
   double alpha = 0, delta = 0;
-  alpha = atan2(ty - now.y_, tx - now.x_) - normalize_angle(get_gyro() * Degree2Rad);
+  alpha = atan2(ty - now.y_, tx - now.x_) - get_gyro() * Degree2Rad;
   delta = atan2(2.0 * L * sin(alpha) / Ld0, 1.0);
 
   delta *= Rad2Degree;  //转换为角度
@@ -298,16 +335,16 @@ void *startMotiCtrlByAuto(void *args) {
   float angle = 0;
   float speed = 35;
 
-  kf_init();  // KF初始化
+  filter_init();  // 滤波器参数初始化
 
   //TODO 生成地图
-  //FIXME 最后一个点有问题
-  Point2d point[]={{20,75},{20,25},{6,25},{6,6},{33,6},{33,25},{22,25}};
+  const Point2d point[]={{20,75},{20,25},{6,25},{6,6},{33,6},{33,25},{22,25}};
+  // const int map_size = (sizeof(point)/sizeof(Point2d) - 1) * 100;
   Point2d map[600] = {0};
   // generate_path(start, end, 500, map);
   generate_map(point,7,map,600);
 
-  CarState now_state;
+  CarState now_state = {0};
 
   while (1) {
     pthread_mutex_lock(&(g_gtwy_info_mutex));
@@ -352,9 +389,9 @@ void *startMotiCtrlByAuto(void *args) {
     {
       now.x_ = uwb_now.x;
       now.y_ = uwb_now.y;
-      //TODO 绕圈时有问题
+      //TODO 绕圈时判断是否到达终点有问题
       if (dist(&now, &end) > 1) {  //未到达终点
-        angle = pure_pursuit_control(now, map, 500);
+        angle = pure_pursuit_control(now, map, 600);
         //Log(DEBUG, "calc_angle=%.2f", angle);
         send_control_cmd(angle, speed);  //发送控制命令
       } else {                           //到达终点 停车
@@ -366,6 +403,7 @@ void *startMotiCtrlByAuto(void *args) {
       now_state.yaw = get_gyro();
       now_state.angle = angle;
       now_state.speed = speed;
+
       Log(DEBUG, "x=%.2f,y=%.2f,yaw=%d,angle=%.2f", now_state.x, now_state.y,now_state.yaw,now_state.angle);
       save_state_data(now_state,"/userdata/media/test/appcar/CarState.csv",
                   sizeof("/userdata/media/test/appcar/CarState.csv"));
