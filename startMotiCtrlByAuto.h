@@ -8,6 +8,9 @@ typedef struct {
 
     float angle;
     float speed;
+
+    float target_x;
+    float target_y;
 } CarState;
 
 void *startMotiCtrlByAuto(void *);

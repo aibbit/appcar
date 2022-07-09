@@ -77,12 +77,10 @@ _UwbData filter_debounce(_UwbData now_uwb) {
 
     data.x = Kalman_Filter(&KF_X, data.x);
     data.y = Kalman_Filter(&KF_Y, data.y);
-    count = 0;    float target_x;
-    float target_y;
-
+    count = 0;
   }
 
-  if(count > 100) {
+  if (count > 100) {
     // 当100次全为0后 输出0 并打印ERROR日志
     data.x = 0;
     data.y = 0;
@@ -94,9 +92,7 @@ _UwbData filter_debounce(_UwbData now_uwb) {
     Log(WARN, "%d times the uwb data is zero", count);
   }
 
-  last_data = data;    float target_x;
-    float target_y;
-
+  last_data = data;
   return data;
 }
 
@@ -116,14 +112,14 @@ void save_gyro_data(int data, char *filename, int namesize) {
 }
 
 //保存行驶状态到文件
-//TODO 保存纯跟踪目标点 调试时使用
 void save_state_data(CarState data, char *filename, int namesize) {
   FILE *fp = NULL;
   char file_name[128] = {0};
   char buf[128] = {0};
 
   memcpy(file_name, filename, namesize);
-  sprintf(buf, "%.3f,%.3f,%d,%.3f,%.3f\n", data.x, data.y,data.yaw,data.angle,data.speed);
+  sprintf(buf, "%.3f,%.3f,%d,%.3f,%.3f,%.3f,%.3f\n", data.x, data.y, data.yaw,
+          data.angle, data.speed, data.target_x, data.target_y);
 
   if ((fp = fopen(file_name, "a+")) != NULL) {
     fprintf(fp, "%s", buf);
@@ -157,7 +153,7 @@ int parse_gyro(_RV3399Info g_rv3399_info) {
  * @param now
  * @return int
  **/
- //FIXME 超过360度可能有问题 角度归一化
+// FIXME 超过360度可能有问题 需要角度归一化
 int calc_gyro(int init, int now) {
   int theta = 0;
   theta = now - init;
@@ -173,7 +169,7 @@ int calc_gyro(int init, int now) {
   return theta;
 }
 
-//TODO 根据陀螺仪原地转相应角度 不能自动停车
+// TODO 根据陀螺仪原地转相应角度 不能自动停车
 void turn_angle(int angle) {
   int gyro_init = parse_gyro(g_rv3399_info);
   int gyro_now = gyro_init;
@@ -192,7 +188,7 @@ void turn_angle(int angle) {
   send_control_cmd(0, 0);
 }
 
-//FIXME 在车头朝向西时初始化
+// FIXME 在车头朝向西时初始化
 static int gyro_init = 0;   //陀螺仪清零值
 volatile int gyro_now = 0;  //陀螺仪当前值
 int get_gyro(void) { return calc_gyro(gyro_init, gyro_now); }
@@ -235,48 +231,62 @@ void generate_path(const Point2d start, const Point2d end, const int size,
   }
 }
 
-void generate_map(const Point2d point[], const int point_size, Point2d map[], const int map_size){
+void generate_map(const Point2d point[], const int point_size, Point2d map[],
+                  const int map_size) {
+  Point2d tmp[100] = {0};
 
-  Point2d tmp[100]={0};
-
-  for(int i=0;i<point_size-1;i++){
-    generate_path(point[i],point[i+1],100,tmp);
-    memcpy(map + i*100,tmp,100*sizeof(Point2d));
-    if(i*100 > map_size){
-      //TODO 数组越界检查
-      Log(WARN,"map size too small");
+  for (int i = 0; i < point_size - 1; i++) {
+    generate_path(point[i], point[i + 1], 100, tmp);
+    // 数组越界检查
+    if (i * 100 > map_size) {
+      Log(WARN, "array overflow");
       break;
     }
+    memcpy(map + i * 100, tmp, 100 * sizeof(Point2d));
   }
+  Log(INFO, "generate map suceessed");
 }
 
-/**
- * @brief 纯跟踪路径跟踪算法
- *
- * @param now 当前坐标点
- * @param map 地图
- * @param size 地图大小
- * @param target_ind 地图中的目标点 临时调试接口
- * @return double 车轮转角
-**/
+// 引入横向偏差
+double calc_steering_angle(const double L, const double now_x, const double now_y,
+                           const double now_yaw, const double target_x,
+                           const double target_y) {
+  double delta_x = target_x - now_x;
+  double delta_y = target_y - now_y;
+  // 旋转矩阵展开
+  double x = delta_x * cos(now_yaw) - delta_y * sin(now_yaw);
+  double y = delta_x * sin(now_yaw) + delta_y * cos(now_yaw);
+  double alpha = atan2(y, x);
+  double angle_error =
+      atan2(2.0 * L * sin(alpha), sqrt(delta_x * delta_x + delta_y * delta_y));
+  return angle_error;
+}
+
+// 纯跟踪 路径跟踪算法
 double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
-  const float Kv = 0.1;  // 前视距离系数
-  const float Ld0 = 2.0;   // 预瞄距离的下限值
-  const float L = 1.0;   // 车辆轴距
+  const float Kv = 0.02f;   // 前视距离系数
+  const float Ld0 = 2.0f;  // 预瞄距离的下限值
+  const float L = 1.0f;    // 车辆轴距
 
   // 搜索最临近的路点
   int ind = 0;
   ind = ClosestWayPoint(now, map, size);
 
   // 从该点开始向后搜索，找到与预瞄距离最相近的一个轨迹点
-  float L_steps = 0;  // 参考轨迹上几个点的临近距离
-  while (Ld0 > L_steps && (ind + 1) < size) {
+  float L_steps = 0.0f;  // 参考轨迹上几个点的临近距离
+
+
+  static float now_v = 40.0f;
+  float Lf = 0;
+  Lf = Kv * now_v + Ld0;
+
+  while (Lf > L_steps && (ind + 1) < size) {
     L_steps +=
         distance(map[ind].x_, map[ind].y_, map[ind + 1].x_, map[ind + 1].y_);
     ind += 1;
   }
 
-  float tx = 0, ty = 0;
+  float tx = 0, ty = 0;  //待追踪目标点
   if (ind < size) {
     tx = map[ind].x_;
     ty = map[ind].y_;
@@ -287,14 +297,45 @@ double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
   }
 
   double alpha = 0, delta = 0;
-  alpha = atan2(ty - now.y_, tx - now.x_) - get_gyro() * Degree2Rad;
-  delta = atan2(2.0 * L * sin(alpha) / Ld0, 1.0);
+  float now_yaw = 0;
+  now_yaw = get_gyro() * Degree2Rad;  //航向角(绝对值)
+  alpha = atan2(ty - now.y_, tx - now.x_) - now_yaw;
+  delta = atan2(2.0 * L * sin(alpha) / Lf, 1.0);
+
+  // TODO 引入横向偏差 和 前馈控制
+  double angle_error = 0.0;
+  angle_error = calc_steering_angle(L,now.x_,now.y_,now_yaw,tx,ty);
+  delta += 0.2215 * angle_error;
 
   delta *= Rad2Degree;  //转换为角度
+
+  // TODO 加入速度控制
+  now_v = now_v - 0.4 * fabs(delta);
+
+  // 直接发送控制命令
+  send_control_cmd(delta, now_v);
+
+  // test
+  CarState now_state = {0};
+  now_state.x = now.x_;
+  now_state.y = now.y_;
+  now_state.yaw = get_gyro();
+  now_state.angle = delta;
+  now_state.speed = now_v;
+  now_state.target_x = tx;
+  now_state.target_y = ty;
+
+  Log(DEBUG, "x=%.2f,y=%.2f,yaw=%d,angle=%.2f,speed=%.2f", now_state.x,
+      now_state.y, now_state.yaw, now_state.angle, now_state.speed);
+  Log(DEBUG, "target_x=%.2f,target_y=%.2f", tx, ty);
+  save_state_data(now_state, "/userdata/media/test/appcar/CarState.csv",
+                  sizeof("/userdata/media/test/appcar/CarState.csv"));
+  // test end
 
   return delta;
 }
 
+// @deprecated 废弃
 double path_track(Point2d now, Point2d start, Point2d end) {
   const int v = 10;  //速度
 
@@ -313,7 +354,7 @@ double path_track(Point2d now, Point2d start, Point2d end) {
   //   d = 0;
 
   //根据当前点到起点,终点确立的直线距离 确立后轮转向角
-  //p控制系数20
+  // p控制系数20
   float si_dot = 20 * d;
 
   //过大限制
@@ -337,14 +378,15 @@ void *startMotiCtrlByAuto(void *args) {
 
   filter_init();  // 滤波器参数初始化
 
-  //TODO 生成地图
-  const Point2d point[]={{20,75},{20,25},{6,25},{6,6},{33,6},{33,25},{22,25}};
-  // const int map_size = (sizeof(point)/sizeof(Point2d) - 1) * 100;
-  Point2d map[600] = {0};
+  // TODO 生成地图
+  const Point2d point[] = {{20, 75}, {20, 25}, {6, 25}, {6, 6},
+                           {33, 6},  {33, 25}, {22, 25}};
+  const int map_size = (sizeof(point) / sizeof(Point2d) - 1) * 100;
+  Point2d map[map_size];
   // generate_path(start, end, 500, map);
-  generate_map(point,7,map,600);
+  generate_map(point, sizeof(point) / sizeof(Point2d), map, map_size);
 
-  CarState now_state = {0};
+  // CarState now_state = {0};
 
   while (1) {
     pthread_mutex_lock(&(g_gtwy_info_mutex));
@@ -389,25 +431,14 @@ void *startMotiCtrlByAuto(void *args) {
     {
       now.x_ = uwb_now.x;
       now.y_ = uwb_now.y;
-      //TODO 绕圈时判断是否到达终点有问题
+      // TODO 绕圈时判断是否到达终点有问题
       if (dist(&now, &end) > 1) {  //未到达终点
-        angle = pure_pursuit_control(now, map, 600);
-        //Log(DEBUG, "calc_angle=%.2f", angle);
-        send_control_cmd(angle, speed);  //发送控制命令
+        pure_pursuit_control(now, map, map_size);
+        // Log(DEBUG, "calc_angle=%.2f", angle);
+        // send_control_cmd(angle, speed);  //发送控制命令
       } else {                           //到达终点 停车
         send_control_cmd(0, 0);          //发送控制命令
       }
-      //test
-      now_state.x = now.x_;
-      now_state.y = now.y_;
-      now_state.yaw = get_gyro();
-      now_state.angle = angle;
-      now_state.speed = speed;
-
-      Log(DEBUG, "x=%.2f,y=%.2f,yaw=%d,angle=%.2f", now_state.x, now_state.y,now_state.yaw,now_state.angle);
-      save_state_data(now_state,"/userdata/media/test/appcar/CarState.csv",
-                  sizeof("/userdata/media/test/appcar/CarState.csv"));
-      //test end
     }
     usleep(50000);  // 50ms
   }                 // end while
