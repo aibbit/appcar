@@ -66,13 +66,14 @@ def main():
         plt.plot(data_x, data_y, "-b", label="trajectory")
 
         # 数据和模拟器不一样
-        draw.draw_car(state.x, state.y, state.yaw + PI, - state.steer)
+        draw.draw_car(state.x, state.y, state.yaw + PI, -state.steer)
 
         plt.axis("equal")
+        # plt.axis([state.x - 15, state.x + 15, state.y - 15, state.y + 15])
         plt.grid(True)
         # plt.title("Speed[km/h]:" + str(state.v * 3.6)[:4] + "  " + "angle:" + str(state.steer* 57.29578)[:4])
-        plt.title("angle:" + str(state.steer * 57.295779513)[:4] + "  " + "yaw:" +
-                  str(state.yaw * 57.295779513)[:4])
+        plt.title("angle:" + str(state.steer * 57.295779513)[:4] + "  " +
+                  "yaw:" + str(state.yaw * 57.295779513)[:4])
         plt.gcf().canvas.mpl_connect(
             'key_release_event',
             lambda event: [exit(0) if event.key == 'escape' else None])

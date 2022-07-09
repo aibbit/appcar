@@ -68,12 +68,12 @@ if __name__ == "__main__":
     timeData2, data_x, data_y = read_csv("UwbData.csv")
 
     LimitFilterData = LimitFilter(data_x_raw, 10)
-    LagFilterData = FirstOrderLagFilter(LimitFilterData, 0.95)
+    # LagFilterData = FirstOrderLagFilter(LimitFilterData, 0.95)
     # print(LagFilterData)
 
     predData = []
-    kf = KF(1e-6, 0.002)   # 初始化KF
-    for t in LagFilterData:
+    kf = KF(1e-6, 1e-4)   # 初始化KF
+    for t in LimitFilterData:
         predVal = kf.kalman(t)
         predData.append(predVal)
     # print(predData)
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     # 数据 x
     plt.figure(figsize=(8, 5))                  # 这里定义了图像大小
     x1, = plt.plot(timeData, data_x_raw, 'r')   # 原始数据
-    # x2, = plt.plot(timeData, predData, 'g')     # 仿真滤波 参数相同 先验已知
+    x3, = plt.plot(timeData, predData, 'g')     # 仿真滤波 参数相同 先验已知
     x2, = plt.plot(timeData2, data_x, 'b')      # 实际滤波结果
 
     plt.title("UwbData")  # 设置标题
