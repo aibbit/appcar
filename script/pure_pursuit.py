@@ -6,7 +6,7 @@ import pandas as pd
 import draw_car as draw
 
 k = 0.1    # 前视距离系数
-Lfc = 2.0  # 前视距离
+Lfc = 1.0  # 前视距离
 Kp = 1.0   # 速度P控制器系数
 dt = 0.2   # 时间间隔，单位：s
 L = 1.0    # 车辆轴距，单位：m
@@ -59,22 +59,37 @@ def pure_pursuit_control(state, cx, cy, pind):
 
     alpha = math.atan2(ty - state.y, tx - state.x) - state.yaw
 
+    Lf = k * state.v + Lfc
     # if state.v < 0:  # back
     #     alpha = math.pi - alpha
 
-    delta = math.atan2(2.0 * L * math.sin(alpha) / Lfc, 1.0)
+    delta = math.atan2(2.0 * L * math.sin(alpha) / Lf, 1.0)
+
+    delta_error = calc_steering_angle(state.x, state.y, state.yaw, tx, ty)
+
+    delta = delta + 0.5 * delta_error
 
     return delta, ind
 
 
-def calc_steering_angle(L, x_now, y_now, yaw_now, x_target, y_target):
+# def calc_steering_angle(L, x_now, y_now, yaw_now, x_target, y_target):
+#     delta_x = x_target - x_now
+#     delta_y = y_target - y_now
+#     # 旋转矩阵展开
+#     x = delta_x * math.cos(yaw_now) - delta_y * math.sin(yaw_now)
+#     y = delta_x * math.sin(yaw_now) + delta_y * math.cos(yaw_now)
+#     alpha = math.atan2(y, x)
+#     angle_error = math.atan2(2.0 * L * math.sin(alpha), math.sqrt(delta_x**2 + delta_y**2))
+#     return angle_error
+
+
+def calc_steering_angle(x_now, y_now, yaw_now, x_target, y_target):
+    k = 2
     delta_x = x_target - x_now
     delta_y = y_target - y_now
-    # 旋转矩阵展开
-    x = delta_x * math.cos(yaw_now) - delta_y * math.sin(yaw_now)
-    y = delta_x * math.sin(yaw_now) + delta_y * math.cos(yaw_now)
-    alpha = math.atan2(y, x)
-    angle_error = math.atan2(2.0 * L * math.sin(alpha), math.sqrt(delta_x**2 + delta_y**2))
+    # 根据百度Apollo 计算横向误差
+    lat_error = delta_y * math.cos(yaw_now) - delta_x * math.sin(yaw_now)
+    angle_error = math.atan2(k * lat_error, 1)
     return angle_error
 
 
