@@ -41,8 +41,8 @@ Lag_TypeDef LAG_Y;    // UWB_Y
 
 // 滤波器初始化
 void filter_init(void) {
-  Kalman_Init(&KF_X, 1e-6, 0.002);
-  Kalman_Init(&KF_Y, 1e-6, 0.002);
+  Kalman_Init(&KF_X, 1e-6, 1e-4);
+  Kalman_Init(&KF_Y, 1e-6, 1e-4);
 
   limit_filter_init(&LMF_X, 10);
   limit_filter_init(&LMF_Y, 10);
@@ -71,8 +71,8 @@ _UwbData filter_debounce(_UwbData now_uwb) {
     data.y = limit_filter(&LMF_Y, now_uwb.y);
     // data.x = limit_filter_1(now_uwb.x,LMF_X.limit);
 
-    data.x = lag_filter(&LAG_X, data.x);
-    data.y = lag_filter(&LAG_Y, data.y);
+    // data.x = lag_filter(&LAG_X, data.x);
+    // data.y = lag_filter(&LAG_Y, data.y);
     // data.x = lag_filter_1(data.x,0.95);
 
     data.x = Kalman_Filter(&KF_X, data.x);
@@ -143,21 +143,16 @@ int parse_gyro(_RV3399Info g_rv3399_info) {
   } else {
     Log(WARN, "symbol error");
   }
-  return 0;
+  return 0xFF;  // 返回 错误
 }
 
-/**
- * @brief 根据前后陀螺仪数值,计算差值,正值->顺时针转过theta
- *
- * @param init
- * @param now
- * @return int
- **/
-// FIXME 超过360度可能有问题 需要角度归一化
+
+// 根据前后陀螺仪数值,计算差值
 int calc_gyro(int init, int now) {
   int theta = 0;
   theta = now - init;
 
+  // FIXME 归一化
   if (theta <= -180) {
     theta += 360;
   } else if (theta >= 180) {
@@ -188,8 +183,9 @@ void turn_angle(int angle) {
   send_control_cmd(0, 0);
 }
 
-// FIXME 在车头朝向西时初始化
-static int gyro_init = 0;   //陀螺仪清零值
+// 在车头朝向东时初始化(x轴正方向)
+// 东 0度 北 90度
+int gyro_init = 0;   //陀螺仪清零值
 volatile int gyro_now = 0;  //陀螺仪当前值
 int get_gyro(void) { return calc_gyro(gyro_init, gyro_now); }
 
@@ -248,7 +244,8 @@ void generate_map(const Point2d point[], const int point_size, Point2d map[],
 }
 
 // 引入横向偏差
-double calc_steering_angle(const double L, const double now_x, const double now_y,
+// @deprecated 废弃
+double calc_steering_angle_test(const double L, const double now_x, const double now_y,
                            const double now_yaw, const double target_x,
                            const double target_y) {
   double delta_x = target_x - now_x;
@@ -262,10 +259,33 @@ double calc_steering_angle(const double L, const double now_x, const double now_
   return angle_error;
 }
 
+// 根据横向误差计算角度误差项
+// 输出角度误差(弧度)
+double calc_steering_angle(const double now_x, const double now_y,
+                           const double now_yaw, const double target_x,
+                           const double target_y) {
+  const float k = 2.0f; // 参数 与速度有关 自行调节
+  double delta_x = target_x - now_x;
+  double delta_y = target_y - now_y;
+
+  // 根据百度Apollo 计算横向误差
+  double lat_error = delta_y * cos(now_yaw) - delta_x * sin(now_yaw);
+  double angle_error = atan2(k * lat_error, 1);
+
+  // TODO 测试误差大小
+  // test
+  Log(DEBUG,"target_x=%.2f,target_y=%.2f,now_x=%.2f,now_y=%.2f",target_x,target_y,now_x,now_y);
+  Log(DEBUG,"lat_error=%.3f",lat_error);
+  Log(DEBUG,"angle_error=%.3f",angle_error * Rad2Degree);
+  // test end
+
+  return angle_error;
+}
+
 // 纯跟踪 路径跟踪算法
 double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
-  const float Kv = 0.02f;   // 前视距离系数
-  const float Ld0 = 2.0f;  // 预瞄距离的下限值
+  const float Kv = 0.01f;  // 前视距离系数
+  const float Ld0 = 0.8f;  // 预瞄距离的下限值
   const float L = 1.0f;    // 车辆轴距
 
   // 搜索最临近的路点
@@ -276,7 +296,7 @@ double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
   float L_steps = 0.0f;  // 参考轨迹上几个点的临近距离
 
 
-  static float now_v = 40.0f;
+  float now_v = 30.0f;   // 约0.3 m/s
   float Lf = 0;
   Lf = Kv * now_v + Ld0;
 
@@ -302,15 +322,17 @@ double pure_pursuit_control(Point2d now, const Point2d map[], const int size) {
   alpha = atan2(ty - now.y_, tx - now.x_) - now_yaw;
   delta = atan2(2.0 * L * sin(alpha) / Lf, 1.0);
 
-  // TODO 引入横向偏差 和 前馈控制
+  //引入横向偏差
   double angle_error = 0.0;
-  angle_error = calc_steering_angle(L,now.x_,now.y_,now_yaw,tx,ty);
-  delta += 0.2215 * angle_error;
+  angle_error = calc_steering_angle(now.x_,now.y_,now_yaw,tx,ty);
+  delta += 0.3 * angle_error; //0.3为参数 自行调节
+
+  // TODO 引入前馈控制
 
   delta *= Rad2Degree;  //转换为角度
-
+  delta = -1 * delta;   //计算方向与命令方向相反
   // TODO 加入速度控制
-  now_v = now_v - 0.4 * fabs(delta);
+  // now_v = 36 - 0.4 * fabs(delta);
 
   // 直接发送控制命令
   send_control_cmd(delta, now_v);
@@ -414,14 +436,11 @@ void *startMotiCtrlByAuto(void *args) {
     save_uwb_data(uwb_now, "/userdata/media/test/appcar/UwbData.csv",
                   sizeof("/userdata/media/test/appcar/UwbData.csv"));
     // label_cam_send_start(5, 63);
-    // Log(DEBUG, "symbol=%d,theta_cam=%d", g_rv3399_info.symbol,
-    // g_rv3399_info.theta_cam);
-    // Log(DEBUG, "theta_gyro=%d", parse_gyro(g_rv3399_info));
-    // save_gyro_data(parse_gyro(g_rv3399_info),
-    //                "/userdata/media/test/appcar/gyro.csv",
-    //                sizeof("/userdata/media/test/appcar/gyro.csv"));
     Log(DEBUG, "gyro_init=%d", gyro_init);
-    Log(DEBUG, "theta_gyro=%d", get_gyro());  //左正右负
+    Log(DEBUG, "theta_gyro=%d", get_gyro());
+    // Log(DEBUG,  "symbol=%x,theta_gyro=%x,theta_cam=%x",g_rv3399_info.symbol,g_rv3399_info.theta_gyro,g_rv3399_info.theta_cam);   //rv3399测试
+    // Log(DEBUG, "1:%d,2:%d,3:%d,4:%d",gwInfo.ultra1,gwInfo.ultra2,gwInfo.ultra3,gwInfo.ultra4);   //超声波测试
+    // Log(DEBUG, "5:%d,6:%d,7:%d,8:%d",gwInfo.ultra5,gwInfo.ultra6,gwInfo.ultra7,gwInfo.ultra8);   //超声波测试
     // save_gyro_data(get_gyro(), "/userdata/media/test/appcar/gyro.csv",
     //                sizeof("/userdata/media/test/appcar/gyro.csv"));
 
